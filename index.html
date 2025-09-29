@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DeepNet Social - AI Research Community</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <!-- Login Modal -->
+    <div id="loginModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Welcome to DeepNet Social</h2>
+                <button type="button" class="modal-close" onclick="closeLoginModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="auth-tabs">
+                    <button type="button" class="auth-tab active" onclick="switchAuthTab('login')">Login</button>
+                    <button type="button" class="auth-tab" onclick="switchAuthTab('signup')">Sign Up</button>
+                </div>
+                
+                <form id="loginForm" class="auth-form">
+                    <div class="form-group">
+                        <label class="form-label">Username or Email</label>
+                        <input type="text" class="form-control" id="loginUsername" placeholder="Enter username or email" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Password</label>
+                        <input type="password" class="form-control" id="loginPassword" placeholder="Enter password">
+                    </div>
+                    <button type="submit" class="btn btn--primary btn--full-width">Login</button>
+                    <p class="demo-accounts">Demo: Use any username from the sample data (e.g., sarahchen_ai)</p>
+                </form>
+                
+                <form id="signupForm" class="auth-form hidden">
+                    <div class="form-group">
+                        <label class="form-label">Full Name</label>
+                        <input type="text" class="form-control" placeholder="Dr. John Doe" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Username</label>
+                        <input type="text" class="form-control" placeholder="johndoe_ai" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Email</label>
+                        <input type="email" class="form-control" placeholder="john@university.edu" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Institution</label>
+                        <input type="text" class="form-control" placeholder="Stanford University" required>
+                    </div>
+                    <button type="submit" class="btn btn--primary btn--full-width">Create Account</button>
+                </form>
+                
+                <div style="margin-top: 20px; text-align: center;">
+                    <button type="button" class="btn btn--outline" onclick="quickLogin()">Quick Demo Login</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main App Layout -->
+    <div id="app" class="app-container hidden">
+        <!-- Header -->
+        <header class="header">
+            <div class="header-content">
+                <div class="header-left">
+                    <div class="logo">
+                        <span class="logo-icon">🧠</span>
+                        <span class="logo-text">DeepNet Social</span>
+                    </div>
+                </div>
+                <div class="header-center">
+                    <div class="search-container">
+                        <input type="text" id="searchInput" class="search-input" placeholder="Search posts, users, topics...">
+                        <button type="button" class="search-btn">🔍</button>
+                    </div>
+                </div>
+                <div class="header-right">
+                    <nav class="nav">
+                        <a href="#" class="nav-link active" onclick="showSection('home')">Home</a>
+                        <a href="#" class="nav-link" onclick="showSection('profile')">Profile</a>
+                        <a href="#" class="nav-link" onclick="showSection('research')">Research</a>
+                        <a href="#" class="nav-link" onclick="showSection('messages')">Messages</a>
+                    </nav>
+                    <button type="button" class="theme-toggle" onclick="toggleTheme()">🌙</button>
+                    <div class="user-avatar" id="currentUserAvatar">👩‍🔬</div>
+                </div>
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- Left Sidebar -->
+            <aside class="left-sidebar">
+                <div class="sidebar-section">
+                    <ul class="sidebar-menu">
+                        <li><a href="#" class="sidebar-link active" onclick="filterFeed('all')">📰 My Feed</a></li>
+                        <li><a href="#" class="sidebar-link" onclick="filterFeed('trending')">📈 Trending Research</a></li>
+                        <li><a href="#" class="sidebar-link" onclick="filterFeed('communities')">👥 AI Communities</a></li>
+                        <li><a href="#" class="sidebar-link" onclick="filterFeed('bookmarks')">🔖 Bookmarks</a></li>
+                        <li><a href="#" class="sidebar-link" onclick="showSettings()">⚙️ Settings</a></li>
+                    </ul>
+                </div>
+            </aside>
+
+            <!-- Feed Container -->
+            <div class="feed-container">
+                <!-- Post Composer -->
+                <div class="post-composer card">
+                    <div class="composer-header">
+                        <div class="user-avatar">👩‍🔬</div>
+                        <div class="composer-input-container">
+                            <textarea id="postContent" class="composer-input" placeholder="Share your research insights..."></textarea>
+                        </div>
+                    </div>
+                    <div class="composer-tools">
+                        <div class="composer-options">
+                            <button type="button" class="composer-btn" onclick="togglePostType('text')">📝 Text</button>
+                            <button type="button" class="composer-btn" onclick="togglePostType('code')">💻 Code</button>
+                            <button type="button" class="composer-btn" onclick="togglePostType('paper')">📄 Paper</button>
+                            <button type="button" class="composer-btn" onclick="togglePostType('poll')">📊 Poll</button>
+                        </div>
+                        <div class="composer-actions">
+                            <select class="privacy-select">
+                                <option value="public">🌍 Public</option>
+                                <option value="research">🔬 Research Community</option>
+                                <option value="private">🔒 Private</option>
+                            </select>
+                            <button type="button" class="btn btn--primary" onclick="createPost()">Post</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Posts Feed -->
+                <div id="postsContainer" class="posts-container">
+                    <!-- Posts will be dynamically inserted here -->
+                </div>
+            </div>
+
+            <!-- Right Sidebar -->
+            <aside class="right-sidebar">
+                <div class="sidebar-card card">
+                    <h3>Trending Topics</h3>
+                    <div id="trendingTopics" class="trending-topics">
+                        <!-- Trending topics will be inserted here -->
+                    </div>
+                </div>
+                
+                <div class="sidebar-card card">
+                    <h3>Suggested Connections</h3>
+                    <div id="suggestedUsers" class="suggested-users">
+                        <!-- Suggested users will be inserted here -->
+                    </div>
+                </div>
+
+                <div class="sidebar-card card">
+                    <h3>Research Highlights</h3>
+                    <div class="research-highlights">
+                        <div class="highlight-item">
+                            <h4>NeurIPS 2025 Submissions</h4>
+                            <p>Deadline: September 28, 2025</p>
+                        </div>
+                        <div class="highlight-item">
+                            <h4>ICML Workshop Series</h4>
+                            <p>Call for papers now open</p>
+                        </div>
+                    </div>
+                </div>
+            </aside>
+        </main>
+    </div>
+
+    <!-- User Profile Modal -->
+    <div id="profileModal" class="modal hidden">
+        <div class="modal-content profile-modal">
+            <div class="modal-header">
+                <h2 id="profileModalTitle">User Profile</h2>
+                <button type="button" class="modal-close" onclick="closeProfileModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div id="profileModalContent">
+                    <!-- Profile content will be dynamically inserted -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
