@@ -953,7 +953,7 @@
       </aside>
     </div>
   </div>
-   <script type="module">
+  <script type="module">
     // Import Firebase modules
     import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-app.js";
     import { 
@@ -977,7 +977,7 @@
       serverTimestamp,
       arrayUnion,
       arrayRemove,
-      increment // <<< STEP 1: IMPORT increment
+      increment
     } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-firestore.js";
 
     // Your web app's Firebase configuration
@@ -1028,7 +1028,6 @@
 
     function formatTime(timestamp) {
       if (!timestamp || !timestamp.toDate) {
-        // Fallback for objects that might not be Firestore timestamps yet
         return 'a moment ago';
       }
       const date = timestamp.toDate();
@@ -1222,7 +1221,7 @@
           likes: 0,
           likedBy: [],
           commentList: [],
-          shareCount: 0 // <<< STEP 3: INITIALIZE SHARE COUNT ON NEW POSTS
+          shareCount: 0
         });
         
         postInput.value = '';
@@ -1282,7 +1281,6 @@
       }
     };
 
-    // <<< STEP 4: IMPLEMENT THE NEW sharePost FUNCTION
     window.sharePost = async function(postId) {
         const user = auth.currentUser;
         if (!user) {
@@ -1293,7 +1291,6 @@
         const postRef = doc(db, 'posts', postId);
 
         try {
-            // Atomically increment the share count on the server
             await updateDoc(postRef, {
                 shareCount: increment(1)
             });
@@ -1334,12 +1331,12 @@
       if (!text) return;
 
       const comment = {
-        id: Date.now().toString() + user.uid.slice(0, 5), // Make ID more unique
+        id: Date.now().toString() + user.uid.slice(0, 5),
         userId: user.uid,
         author: user.displayName || user.email.split('@')[0],
         avatar: user.photoURL || `https://i.pravatar.cc/28?u=${user.uid}`,
         text: text,
-        createdAt: serverTimestamp() // Use server timestamp for consistency
+        createdAt: new Date() // <<< THIS IS THE FIX: Reverted from serverTimestamp()
       };
 
       try {
@@ -1353,8 +1350,6 @@
         showNotification("Failed to add comment.", "error");
       }
     };
-
-
 
     window.deleteComment = async function(postId, commentId) {
       const user = auth.currentUser;
@@ -1383,9 +1378,7 @@
       }
     };
 
-    // Event listeners, Auth handlers, and Auth state listener (No changes here)
-    // ... (The rest of the script remains the same) ...
-
+    // Event listeners, Auth handlers, and Auth state listener
     loginModal.addEventListener('click', function(e) {
       if (e.target === loginModal) {
         closeModal();
@@ -1470,11 +1463,13 @@
         profileName.textContent = 'Your Profile';
         
         updateStatus('🔄 Please log in', 'offline');
-        postsContainer.innerHTML = ''; // Clear posts on logout
+        postsContainer.innerHTML = '';
         console.log('User logged out');
       }
     });
 
     updateStatus('🔄 Initializing...', 'offline');
-    console.log('🧠 DeepNet Social - Share feature enabled!');
+    console.log('🧠 DeepNet Social - Comment fix applied!');
   </script>
+</body>
+</html>
