@@ -1,21 +1,25 @@
-import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-app.js";
-import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-auth.js";
-import { getFirestore, collection, addDoc, serverTimestamp, query, orderBy, onSnapshot, updateDoc, doc, setDoc, getDoc, arrayUnion, arrayRemove } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-firestore.js";
+// === Firebase SDK Imports (from import-map in index.html) ===
+import { initializeApp } from "firebase/app";
+import { getAnalytics } from "firebase/analytics";
+import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged } from "firebase/auth";
+import { getFirestore, collection, addDoc, serverTimestamp, query, orderBy, onSnapshot, updateDoc, doc, setDoc, getDoc, arrayUnion, arrayRemove } from "firebase/firestore";
 
 const App = {
     // === Firebase Config ===
     firebaseConfig: {
-        apiKey: "AIzaSyBytov9p2TGFudvnwQZ1hSi5f9oXaSKDAQ",
-        authDomain: "deepnet-social-backend.firebaseapp.com",
-        projectId: "deepnet-social-backend",
-        storageBucket: "deepnet-social-backend.appspot.com",
-        messagingSenderId: "689173633913",
-        appId: "1:689173633913:web:b5290dc64ea8fd2b2f2da8",
+        apiKey: "AIzaSyALLWz-xkvroabNu_ug6ZVdDEmNF3O2eJs",
+        authDomain: "deep-9656b.firebaseapp.com",
+        projectId: "deep-9656b",
+        storageBucket: "deep-9656b.firebasestorage.app",
+        messagingSenderId: "786248126233",
+        appId: "1:786248126233:web:be8ebed2a68281204eff88",
+        measurementId: "G-FWC45EBFFP"
     },
 
     // === App State ===
     db: null,
     auth: null,
+    analytics: null,
     isLoginMode: true,
     currentUser: null,
     postsListener: () => {},
@@ -28,9 +32,11 @@ const App = {
 
     // === App Initialization ===
     init() {
-        initializeApp(this.firebaseConfig);
-        this.auth = getAuth();
-        this.db = getFirestore();
+        const app = initializeApp(this.firebaseConfig);
+        this.auth = getAuth(app);
+        this.db = getFirestore(app);
+        this.analytics = getAnalytics(app);
+        
         this.cacheDOMElements();
         this.initEventListeners();
         this.handleAuthState();
@@ -72,16 +78,16 @@ const App = {
         this.elements.logoutBtn.addEventListener("click", () => signOut(this.auth));
         this.elements.postForm.addEventListener("submit", (e) => this.createPost(e));
 
-        // Event delegation for dynamic content (posts, comments)
         this.elements.postsContainer.addEventListener("click", (e) => {
-            if (e.target.matches("[data-like-id]")) this.toggleLike(e.target.dataset.likeId);
-            if (e.target.matches("[data-delete-comment-id]")) this.deleteComment(e);
+            const likeButton = e.target.closest("[data-like-id]");
+            const deleteButton = e.target.closest("[data-delete-comment-id]");
+            if (likeButton) this.toggleLike(likeButton.dataset.likeId);
+            if (deleteButton) this.deleteComment(deleteButton.dataset.deleteCommentId, deleteButton.dataset.commentIndex);
         });
         this.elements.postsContainer.addEventListener("submit", (e) => {
             if (e.target.matches(".comment-form")) this.addComment(e);
         });
 
-        // Chat listeners
         this.elements.chatCloseBtn.addEventListener("click", () => this.closeChat());
         this.elements.chatInputForm.addEventListener("submit", (e) => this.sendMessage(e));
     },
@@ -174,39 +180,30 @@ const App = {
         const liked = post.likes.includes(this.currentUser.uid);
         const time = post.createdAt?.toDate().toLocaleString() || "just now";
 
-        // Programmatic creation to prevent XSS
         postEl.innerHTML = `
             <header class="post-header">
-                <div>
-                    <div class="post-author">${post.authorEmail}</div>
-                    <div class="post-time">${time}</div>
-                </div>
+                <div><div class="post-author">${post.authorEmail}</div><div class="post-time">${time}</div></div>
             </header>
             <div class="post-content"></div>
             <footer class="post-actions">
                 <button class="post-action ${liked ? "liked" : ""}" data-like-id="${id}">👍 ${post.likes.length}</button>
                 <button class="post-action">💬 ${post.comments.length}</button>
             </footer>
-            <div class="comments"></div>
-        `;
-        postEl.querySelector('.post-content').textContent = post.content; // Securely set content
+            <div class="comments"></div>`;
+        postEl.querySelector('.post-content').textContent = post.content;
         
-        // Render comments
         const commentsContainer = postEl.querySelector('.comments');
         post.comments.forEach((comment, index) => {
-            const commentEl = this.createCommentElement(id, index, comment);
-            commentsContainer.appendChild(commentEl);
+            commentsContainer.appendChild(this.createCommentElement(id, index, comment));
         });
 
-        // Add comment form
         const commentForm = document.createElement('form');
         commentForm.className = 'comment-form';
         commentForm.dataset.postId = id;
         commentForm.innerHTML = `
             <label for="comment-input-${id}" class="visually-hidden">Write a comment</label>
             <input id="comment-input-${id}" class="comment-input" placeholder="Write a comment..." required />
-            <button class="comment-btn" type="submit">Post</button>
-        `;
+            <button class="comment-btn" type="submit">Post</button>`;
         commentsContainer.appendChild(commentForm);
 
         return postEl;
@@ -233,12 +230,8 @@ const App = {
         const ref = doc(this.db, "posts", postId);
         const postSnap = await getDoc(ref);
         if (!postSnap.exists()) return;
-
         const likes = postSnap.data().likes || [];
-        const newLikes = likes.includes(this.currentUser.uid)
-            ? arrayRemove(this.currentUser.uid)
-            : arrayUnion(this.currentUser.uid);
-        
+        const newLikes = likes.includes(this.currentUser.uid) ? arrayRemove(this.currentUser.uid) : arrayUnion(this.currentUser.uid);
         await updateDoc(ref, { likes: newLikes });
     },
 
@@ -248,32 +241,19 @@ const App = {
         const input = form.querySelector('input');
         const text = input.value.trim();
         const postId = form.dataset.postId;
-
         if (!text || !this.currentUser) return;
-
-        const newComment = {
-            uid: this.currentUser.uid,
-            userEmail: this.currentUser.email,
-            text
-        };
-
+        const newComment = { uid: this.currentUser.uid, userEmail: this.currentUser.email, text };
         const ref = doc(this.db, "posts", postId);
         await updateDoc(ref, { comments: arrayUnion(newComment) });
         form.reset();
     },
 
-    async deleteComment(e) {
-        const btn = e.target;
-        const postId = btn.dataset.deleteCommentId;
-        const index = parseInt(btn.dataset.commentIndex);
-
+    async deleteComment(postId, index) {
         const ref = doc(this.db, "posts", postId);
         const postSnap = await getDoc(ref);
         if (!postSnap.exists()) return;
-
         const postData = postSnap.data();
-        if (postData.comments[index].uid !== this.currentUser.uid) return; // Security check
-
+        if (postData.comments[index].uid !== this.currentUser.uid) return;
         const newComments = [...postData.comments];
         newComments.splice(index, 1);
         await updateDoc(ref, { comments: newComments });
@@ -287,7 +267,6 @@ const App = {
             snapshot.forEach((docSnap) => {
                 const user = docSnap.data();
                 if (user.uid === this.currentUser.uid) return;
-                
                 const userEl = document.createElement('a');
                 userEl.href = "#";
                 userEl.className = "user-item";
@@ -302,18 +281,15 @@ const App = {
     },
 
     async openChat(targetUserId, targetUserEmail) {
-        this.chatListener(); // Unsubscribe from previous chat
+        this.chatListener();
         this.currentChatId = [this.currentUser.uid, targetUserId].sort().join('_');
         const chatRef = doc(this.db, 'chats', this.currentChatId);
-
         const chatSnap = await getDoc(chatRef);
         if (!chatSnap.exists()) {
             await setDoc(chatRef, { participants: [this.currentUser.uid, targetUserId] });
         }
-
         this.elements.chatUserName.textContent = `Chat with ${targetUserEmail}`;
         this.elements.chatDialog.showModal();
-
         const messagesQuery = query(collection(this.db, 'chats', this.currentChatId, 'messages'), orderBy('createdAt', 'asc'));
         this.chatListener = onSnapshot(messagesQuery, (snapshot) => {
             this.elements.chatMessages.innerHTML = '';
@@ -330,7 +306,7 @@ const App = {
     },
     
     closeChat() {
-        this.chatListener(); // Unsubscribe
+        this.chatListener();
         this.currentChatId = null;
         this.elements.chatDialog.close();
     },
@@ -339,7 +315,6 @@ const App = {
         e.preventDefault();
         const text = this.elements.chatInput.value.trim();
         if (!text || !this.currentChatId) return;
-
         this.elements.chatInputForm.reset();
         await addDoc(collection(this.db, 'chats', this.currentChatId, 'messages'), {
             text,
