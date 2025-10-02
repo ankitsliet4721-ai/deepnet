@@ -206,24 +206,30 @@ chatMessages.appendChild(msgDiv);
 });
 chatMessages.scrollTop = chatMessages.scrollHeight;
 }
-
 async function sendMessage() {
   const text = chatInput.value.trim();
-  if (!text || !currentChatUser) return;
+  if (!text) {
+    showNotification('Message cannot be empty', 'error');
+    return;
+  }
+  if (!currentChatUser) {
+    showNotification('Select a user to chat with first', 'error');
+    return;
+  }
 
   const chatId = getChatId(currentUser.uid, currentChatUser.uid);
 
   try {
-    // Ensure chat doc exists or create it
+    // Ensure chat doc exists or create it (Firestore merge)
     await setDoc(doc(db, 'chats', chatId), {
       participants: [currentUser.uid, currentChatUser.uid],
       lastMessage: text,
-      lastMessageTime: serverTimestamp(),
+      lastMessageTime: serverTimestamp()
     }, { merge: true });
 
-    // Add message
+    // Add the message to messages subcollection
     await addDoc(collection(db, `chats/${chatId}/messages`), {
-      text,
+      text: text,
       senderId: currentUser.uid,
       timestamp: serverTimestamp()
     });
@@ -232,7 +238,8 @@ async function sendMessage() {
     stopTyping();
   } catch (error) {
     console.error('Error sending message:', error);
-    showNotification('Message send failed: ' + error.message, 'error');
+    const errorMessage = (error && error.message) ? error.message : 'Unknown error';
+    showNotification('Failed to send message: ' + errorMessage, 'error');
   }
 }
 // Typing indicator (basic debounced)
