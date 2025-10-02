@@ -1,311 +1,352 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-app.js";
-import { 
-  getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, 
-  sendEmailVerification, onAuthStateChanged 
-} from "https://www.gstatic.com/firebasejs/11.0.1/firebase-auth.js";
-import { 
-  getFirestore, collection, query, onSnapshot, doc, getDoc, setDoc, addDoc, orderBy, 
-  serverTimestamp 
-} from "https://www.gstatic.com/firebasejs/11.0.1/firebase-firestore.js";
+import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-auth.js";
+import { getFirestore, collection, addDoc, serverTimestamp, query, orderBy, onSnapshot, updateDoc, doc, setDoc, getDoc, arrayUnion, arrayRemove } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-firestore.js";
 
-const firebaseConfig = {
-  apiKey: "AIzaSyBytov9p2TGFudvnwQZ1hSi5f9oXaSKDAQ",
-  authDomain: "deepnet-social-backend.firebaseapp.com",
-  projectId: "deepnet-social-backend",
-  storageBucket: "deepnet-social-backend.firebasestorage.app",
-  messagingSenderId: "689173633913",
-  appId: "1:689173633913:web:b5290dc64ea8fd2b2f2da8",
-  measurementId: "G-B1ENWRY6JK"
-};
-const app = initializeApp(firebaseConfig);
-const auth = getAuth(app);
-const db = getFirestore(app);
+const App = {
+    // === Firebase Config ===
+    firebaseConfig: {
+        apiKey: "AIzaSyBytov9p2TGFudvnwQZ1hSi5f9oXaSKDAQ",
+        authDomain: "deepnet-social-backend.firebaseapp.com",
+        projectId: "deepnet-social-backend",
+        storageBucket: "deepnet-social-backend.appspot.com",
+        messagingSenderId: "689173633913",
+        appId: "1:689173633913:web:b5290dc64ea8fd2b2f2da8",
+    },
 
-// ================= Helpers =================
-function showNotification(msg, type='success') {
-  const n = document.getElementById('notification');
-  n.textContent = msg; n.className = `notification ${type} show`;
-  setTimeout(() => n.classList.remove('show'), 3000);
-}
-function switchAuthTab(tab){
-  document.getElementById('loginForm').classList.toggle('hidden', tab !== 'login');
-  document.getElementById('signupForm').classList.toggle('hidden', tab !== 'signup');
-}
-function closeLoginModal(){ document.getElementById('loginModal').style.display = 'none'; }
-function openLoginModal(){ document.getElementById('loginModal').style.display = 'block'; }
-function showApp(){ document.getElementById('app').classList.remove('hidden'); closeLoginModal(); }
+    // === App State ===
+    db: null,
+    auth: null,
+    isLoginMode: true,
+    currentUser: null,
+    postsListener: () => {},
+    usersListener: () => {},
+    chatListener: () => {},
+    currentChatId: null,
 
-// ==================== Chat UI Elements and State ====================
-const chatModal = document.getElementById('chatModal');
-const chatUserName = document.getElementById('chatUserName');
-const chatCloseBtn = document.getElementById('chatCloseBtn');
-const chatMessages = document.getElementById('chatMessages');
-const chatInputForm = document.getElementById('chatInputForm');
-const chatInput = document.getElementById('chatInput');
-const usersList = document.getElementById('usersList');
+    // === DOM Elements ===
+    elements: {},
 
-let currentChatId = null;
-let chatListenerUnsubscribe = null;
+    // === App Initialization ===
+    init() {
+        initializeApp(this.firebaseConfig);
+        this.auth = getAuth();
+        this.db = getFirestore();
+        this.cacheDOMElements();
+        this.initEventListeners();
+        this.handleAuthState();
+    },
 
-// ==================== Authentication Handlers ====================
+    cacheDOMElements() {
+        this.elements = {
+            // Auth
+            authDialog: document.getElementById("authDialog"),
+            authTitle: document.getElementById("authTitle"),
+            authForm: document.getElementById("authForm"),
+            authEmail: document.getElementById("authEmail"),
+            authPassword: document.getElementById("authPassword"),
+            authActionBtn: document.getElementById("authActionBtn"),
+            toggleAuthModeBtn: document.getElementById("toggleAuthModeBtn"),
+            authMessage: document.getElementById("authMessage"),
+            logoutBtn: document.getElementById("logoutBtn"),
+            // Main Content
+            mainContent: document.getElementById("mainContent"),
+            // Posts
+            postForm: document.getElementById("postForm"),
+            postInput: document.getElementById("postInput"),
+            postsContainer: document.getElementById("postsContainer"),
+            // Users & Chat
+            usersList: document.getElementById("usersList"),
+            chatDialog: document.getElementById("chatDialog"),
+            chatUserName: document.getElementById("chatUserName"),
+            chatCloseBtn: document.getElementById("chatCloseBtn"),
+            chatMessages: document.getElementById("chatMessages"),
+            chatInputForm: document.getElementById("chatInputForm"),
+            chatInput: document.getElementById("chatInput"),
+        };
+    },
 
-// SIGNUP: add user to Firestore users on signup
-document.getElementById('signupForm').addEventListener('submit', async (e) => {
-  e.preventDefault();
-  const email = e.target.email.value.trim();
-  const password = e.target.password.value.trim();
-  const msg = document.getElementById('signupMessage');
+    // === Event Listeners (using Delegation) ===
+    initEventListeners() {
+        this.elements.toggleAuthModeBtn.addEventListener("click", () => this.toggleAuthMode());
+        this.elements.authForm.addEventListener("submit", (e) => this.handleAuthAction(e));
+        this.elements.logoutBtn.addEventListener("click", () => signOut(this.auth));
+        this.elements.postForm.addEventListener("submit", (e) => this.createPost(e));
 
-  try {
-    const cred = await createUserWithEmailAndPassword(auth, email, password);
-    await sendEmailVerification(cred.user);
-    await setDoc(doc(db, 'users', cred.user.uid), {
-      uid: cred.user.uid,
-      email: cred.user.email
-    });
-    msg.className = 'auth-message success';
-    msg.textContent = "✅ Account created. Verification email sent. Please verify before logging in.";
-    await signOut(auth);
-    e.target.reset();
-  } catch(err){
-    msg.className = 'auth-message error';
-    msg.textContent = `❌ ${err.message}`;
-  }
-});
+        // Event delegation for dynamic content (posts, comments)
+        this.elements.postsContainer.addEventListener("click", (e) => {
+            if (e.target.matches("[data-like-id]")) this.toggleLike(e.target.dataset.likeId);
+            if (e.target.matches("[data-delete-comment-id]")) this.deleteComment(e);
+        });
+        this.elements.postsContainer.addEventListener("submit", (e) => {
+            if (e.target.matches(".comment-form")) this.addComment(e);
+        });
 
-// LOGIN
-document.getElementById('loginForm').addEventListener('submit', async (e) => {
-  e.preventDefault();
-  const email = e.target.email.value.trim();
-  const password = e.target.password.value.trim();
-  const msg = document.getElementById('loginMessage');
+        // Chat listeners
+        this.elements.chatCloseBtn.addEventListener("click", () => this.closeChat());
+        this.elements.chatInputForm.addEventListener("submit", (e) => this.sendMessage(e));
+    },
 
-  try {
-    const cred = await signInWithEmailAndPassword(auth, email, password);
-    if(!cred.user.emailVerified){
-      await signOut(auth);
-      msg.className='auth-message error';
-      msg.innerHTML = `
-        ❌ Email not verified.
-        <br><button id="resendBtn">Resend verification email</button>
-      `;
-      document.getElementById('resendBtn').onclick = async () => {
-        try {
-          const temp = await signInWithEmailAndPassword(auth,email,password);
-          await sendEmailVerification(temp.user);
-          await signOut(auth);
-          showNotification("Verification email resent!");
-        } catch(e2){ showNotification("Failed: " + e2.message,'error'); }
-      };
-      return;
-    }
-    msg.className='auth-message success';
-    msg.textContent = "✅ Login successful!";
-    e.target.reset();
-    setTimeout(()=>document.getElementById('loginModal').classList.add('hidden'),800);
-  } catch(err){
-    msg.className='auth-message error';
-    msg.textContent = `❌ ${err.message}`;
-  }
-});
+    // === Authentication ===
+    handleAuthState() {
+        onAuthStateChanged(this.auth, (user) => {
+            if (user) {
+                this.currentUser = user;
+                this.elements.authDialog.close();
+                this.elements.mainContent.classList.remove("hidden");
+                this.elements.logoutBtn.classList.remove("hidden");
+                this.listenForPosts();
+                this.listenForUsers();
+            } else {
+                this.currentUser = null;
+                this.elements.mainContent.classList.add("hidden");
+                this.elements.logoutBtn.classList.add("hidden");
+                this.elements.authDialog.showModal();
+                this.postsListener(); // Unsubscribe
+                this.usersListener(); // Unsubscribe
+                this.closeChat();
+            }
+        });
+    },
 
-// AUTH STATE CHANGED
-onAuthStateChanged(auth, user => {
-  const loginModal = document.getElementById('loginModal');
-  const appDiv = document.getElementById('app');
-  const avatarEl = document.getElementById('currentUserAvatar');
+    toggleAuthMode() {
+        this.isLoginMode = !this.isLoginMode;
+        this.elements.authTitle.textContent = this.isLoginMode ? "Login" : "Sign Up";
+        this.elements.authActionBtn.textContent = this.isLoginMode ? "Login" : "Sign Up";
+        this.elements.toggleAuthModeBtn.textContent = this.isLoginMode ? "Don’t have an account? Sign up" : "Already have an account? Login";
+        this.elements.authMessage.textContent = "";
+        this.elements.authForm.reset();
+    },
 
-  if (user && user.emailVerified) {
-    loginModal.classList.add('hidden');
-    appDiv.classList.remove('hidden');
-    avatarEl.textContent = user.email[0].toUpperCase();
-
-    renderPosts();
-    listenForUsers();  // LISTEN FOR USERS FOR CHAT
-  } else {
-    loginModal.classList.remove('hidden');
-    appDiv.classList.add('hidden');
-    avatarEl.textContent = '👤';
-    if(chatListenerUnsubscribe) chatListenerUnsubscribe();
-    chatListenerUnsubscribe = null;
-  }
-});
-
-// LOGOUT
-window.logoutUser = async () => {
-  try { await signOut(auth); showNotification('Logged out'); }
-  catch(e){ showNotification('Logout failed: '+e.message,'error'); }
-};
-
-// ==================== POSTS ====================
-const STORAGE_KEY = "deepnet_posts";
-function getPosts(){ try { return JSON.parse(localStorage.getItem(STORAGE_KEY))||[]; } catch{ return []; } }
-function setPosts(p){ localStorage.setItem(STORAGE_KEY,JSON.stringify(p)); }
-
-function createPost(){
-  const user = auth.currentUser;
-  if(!user || !user.emailVerified) { alert("Verify email first!"); return; }
-
-  const content = document.getElementById('postContent').value.trim();
-  if(!content) return;
-
-  const post = {
-    id: Date.now().toString(),
-    content,
-    authorName: user.email.split('@')[0],
-    authorEmail: user.email,
-    authorAvatar: `https://i.pravatar.cc/40?u=${user.uid}`,
-    createdAt: new Date().toISOString(),
-    likes:0, likedBy:[], commentList:[]
-  };
-
-  const posts = getPosts();
-  posts.unshift(post);
-  setPosts(posts);
-  document.getElementById('postContent').value='';
-  renderPosts();
-}
-
-function renderPosts(){
-  const container = document.getElementById('postsContainer');
-  container.innerHTML='';
-  getPosts().forEach(p=>{
-    const div = document.createElement('div');
-    div.className='card post';
-    div.dataset.postId = p.id;
-    const isLiked = p.likedBy.includes(auth.currentUser?.uid);
-    div.innerHTML=`
-      <div class="post-header">
-        <img src="${p.authorAvatar}" class="user-avatar">
-        <b>${p.authorName}</b> <small>${new Date(p.createdAt).toLocaleString()}</small>
-      </div>
-      <div class="post-content">${p.content}</div>
-      <div class="post-stats">
-        <span>${p.likes} reactions • <span class="comment-count">${p.commentList.length}</span> comments</span>
-      </div>
-      <div class="post-actions">
-        <button onclick="toggleLike('${p.id}')" class="${isLiked?'liked':''}">👍 Like</button>
-        <button onclick="focusCommentInput('${p.id}')">💬 Comment</button>
-      </div>
-      <div class="comments">
-        <div class="comment-list"></div>
-        <input class="comment-input" placeholder="Write a comment..." onkeydown="commentKeydown(event,'${p.id}')">
-      </div>
-    `;
-    container.appendChild(div);
-    renderComments(div,p);
-  });
-}
-
-function toggleLike(postId){
-  const posts = getPosts();
-  const idx = posts.findIndex(p=>p.id===postId); if(idx===-1) return;
-  const uid = auth.currentUser?.uid; if(!uid) return;
-  const liked = posts[idx].likedBy.includes(uid);
-  liked ? (posts[idx].likedBy = posts[idx].likedBy.filter(x=>x!==uid), posts[idx].likes--) : (posts[idx].likedBy.push(uid), posts[idx].likes++);
-  setPosts(posts); renderPosts();
-}
-
-function focusCommentInput(postId){ document.querySelector(`[data-post-id="${postId}"] .comment-input`).focus(); }
-function commentKeydown(e,postId){ if(e.key==='Enter'&&!e.shiftKey){ e.preventDefault(); addComment(postId); } }
-function addComment(postId){
-  const posts = getPosts();
-  const idx = posts.findIndex(p=>p.id===postId); if(idx===-1) return;
-  const input = document.querySelector(`[data-post-id="${postId}"] .comment-input`);
-  const text = input.value.trim(); if(!text) return;
-  posts[idx].commentList.push({ userId:auth.currentUser.uid, author:auth.currentUser.email.split('@')[0], text, createdAt:new Date().toISOString() });
-  setPosts(posts); renderPosts();
-}
-function renderComments(postEl, post){
-  const list = postEl.querySelector('.comment-list'); list.innerHTML='';
-  (post.commentList||[]).forEach((c,idx)=>{
-    const item = document.createElement('div');
-    item.innerHTML = `<b>${c.author}</b>: ${c.text} ${auth.currentUser?.uid===c.userId?`<button onclick="deleteComment('${post.id}',${idx})">Delete</button>`:''}`;
-    list.appendChild(item);
-  });
-}
-function deleteComment(postId,idx){ const posts=getPosts(); const i=posts.findIndex(p=>p.id===postId); if(i===-1) return; if(auth.currentUser.uid!==posts[i].commentList[idx].userId) return alert("Not allowed"); posts[i].commentList.splice(idx,1); setPosts(posts); renderPosts(); }
-
-// ============== USER MESSAGING FEATURE ===================
-
-// Listen for all users to populate user list container
-function listenForUsers() {
-  const usersRef = collection(db, 'users');
-  const q = query(usersRef);
-  onSnapshot(q, snapshot => {
-    usersList.innerHTML = '<h3>Users</h3>';
-    snapshot.forEach(doc => {
-      const user = doc.data();
-      if (user.uid === auth.currentUser.uid) return; // Skip current user
-      const userElem = document.createElement('a');
-      userElem.href = "#";
-      userElem.textContent = user.email.split('@')[0];
-      userElem.style.display = "block";
-      userElem.style.cursor = "pointer";
-      userElem.style.padding = "8px";
-      userElem.style.borderBottom = "1px solid #ccc";
-      userElem.onclick = (e) => {
+    async handleAuthAction(e) {
         e.preventDefault();
-        openChat(user.uid, user.email.split('@')[0]);
-      };
-      usersList.appendChild(userElem);
-    });
-  });
-}
+        const email = this.elements.authEmail.value;
+        const password = this.elements.authPassword.value;
+        try {
+            if (this.isLoginMode) {
+                await signInWithEmailAndPassword(this.auth, email, password);
+            } else {
+                const cred = await createUserWithEmailAndPassword(this.auth, email, password);
+                await setDoc(doc(this.db, "users", cred.user.uid), {
+                    uid: cred.user.uid,
+                    email: cred.user.email
+                });
+            }
+            this.elements.authForm.reset();
+        } catch (err) {
+            this.elements.authMessage.textContent = err.message;
+        }
+    },
 
-// Open chat modal for user and listen for messages
-async function openChat(targetUserId, targetUserName) {
-  if (chatListenerUnsubscribe) chatListenerUnsubscribe();
-  currentChatId = [auth.currentUser.uid, targetUserId].sort().join('_');
+    // === Posts & Comments ===
+    async createPost(e) {
+        e.preventDefault();
+        const content = this.elements.postInput.value.trim();
+        if (!content || !this.currentUser) return;
+        try {
+            await addDoc(collection(this.db, "posts"), {
+                content,
+                authorId: this.currentUser.uid,
+                authorEmail: this.currentUser.email,
+                createdAt: serverTimestamp(),
+                likes: [],
+                comments: []
+            });
+            this.elements.postForm.reset();
+        } catch (error) {
+            console.error("Error creating post:", error);
+        }
+    },
 
-  const chatRef = doc(db, 'chats', currentChatId);
-  const chatDoc = await getDoc(chatRef);
+    listenForPosts() {
+        const q = query(collection(this.db, "posts"), orderBy("createdAt", "desc"));
+        this.postsListener = onSnapshot(q, (snapshot) => {
+            this.elements.postsContainer.innerHTML = "";
+            snapshot.forEach(docSnap => {
+                const postEl = this.createPostElement(docSnap.id, docSnap.data());
+                this.elements.postsContainer.appendChild(postEl);
+            });
+        });
+    },
 
-  if (!chatDoc.exists()) {
-    await setDoc(chatRef, {
-      participants: [auth.currentUser.uid, targetUserId],
-      createdAt: serverTimestamp()
-    });
-  }
+    createPostElement(id, post) {
+        const postEl = document.createElement("article");
+        postEl.className = "card post";
+        const liked = post.likes.includes(this.currentUser.uid);
+        const time = post.createdAt?.toDate().toLocaleString() || "just now";
 
-  chatUserName.textContent = targetUserName;
-  chatModal.classList.remove('hidden');
-  chatMessages.innerHTML = '';
+        // Programmatic creation to prevent XSS
+        postEl.innerHTML = `
+            <header class="post-header">
+                <div>
+                    <div class="post-author">${post.authorEmail}</div>
+                    <div class="post-time">${time}</div>
+                </div>
+            </header>
+            <div class="post-content"></div>
+            <footer class="post-actions">
+                <button class="post-action ${liked ? "liked" : ""}" data-like-id="${id}">👍 ${post.likes.length}</button>
+                <button class="post-action">💬 ${post.comments.length}</button>
+            </footer>
+            <div class="comments"></div>
+        `;
+        postEl.querySelector('.post-content').textContent = post.content; // Securely set content
+        
+        // Render comments
+        const commentsContainer = postEl.querySelector('.comments');
+        post.comments.forEach((comment, index) => {
+            const commentEl = this.createCommentElement(id, index, comment);
+            commentsContainer.appendChild(commentEl);
+        });
 
-  const messagesRef = collection(db, 'chats', currentChatId, 'messages');
-  const messagesQuery = query(messagesRef, orderBy('createdAt', 'asc'));
+        // Add comment form
+        const commentForm = document.createElement('form');
+        commentForm.className = 'comment-form';
+        commentForm.dataset.postId = id;
+        commentForm.innerHTML = `
+            <label for="comment-input-${id}" class="visually-hidden">Write a comment</label>
+            <input id="comment-input-${id}" class="comment-input" placeholder="Write a comment..." required />
+            <button class="comment-btn" type="submit">Post</button>
+        `;
+        commentsContainer.appendChild(commentForm);
 
-  chatListenerUnsubscribe = onSnapshot(messagesQuery, (snapshot) => {
-    chatMessages.innerHTML = '';
-    snapshot.forEach(doc => {
-      const msg = doc.data();
-      const msgDiv = document.createElement('div');
-      msgDiv.textContent = `${msg.senderId === auth.currentUser.uid ? 'You: ' : targetUserName + ': '}${msg.text}`;
-      chatMessages.appendChild(msgDiv);
-      chatMessages.scrollTop = chatMessages.scrollHeight;
-    });
-  });
-}
+        return postEl;
+    },
+    
+    createCommentElement(postId, index, comment) {
+        const commentEl = document.createElement('div');
+        commentEl.className = 'comment-item';
+        commentEl.innerHTML = `
+            <div class="comment-avatar">${comment.userEmail[0].toUpperCase()}</div>
+            <div>
+                <div class="comment-body"></div>
+                <div class="comment-meta">
+                    <strong>${comment.userEmail}</strong>
+                    ${comment.uid === this.currentUser.uid ? `<button class="delete-comment" data-delete-comment-id="${postId}" data-comment-index="${index}">Delete</button>` : ""}
+                </div>
+            </div>`;
+        commentEl.querySelector('.comment-body').textContent = comment.text;
+        return commentEl;
+    },
 
-// Close chat modal button listener
-chatCloseBtn.addEventListener('click', () => {
-  chatModal.classList.add('hidden');
-  chatInput.value = '';
-  if (chatListenerUnsubscribe) chatListenerUnsubscribe();
-  chatListenerUnsubscribe = null;
-  currentChatId = null;
-});
+    async toggleLike(postId) {
+        if (!this.currentUser) return;
+        const ref = doc(this.db, "posts", postId);
+        const postSnap = await getDoc(ref);
+        if (!postSnap.exists()) return;
 
-// Send message form handler
-chatInputForm.addEventListener('submit', async (e) => {
-  e.preventDefault();
-  if (!currentChatId || !chatInput.value.trim()) return;
+        const likes = postSnap.data().likes || [];
+        const newLikes = likes.includes(this.currentUser.uid)
+            ? arrayRemove(this.currentUser.uid)
+            : arrayUnion(this.currentUser.uid);
+        
+        await updateDoc(ref, { likes: newLikes });
+    },
 
-  const messagesRef = collection(db, 'chats', currentChatId, 'messages');
-  await addDoc(messagesRef, {
-    text: chatInput.value.trim(),
-    senderId: auth.currentUser.uid,
-    createdAt: serverTimestamp()
-  });
-  chatInput.value = '';
-});
+    async addComment(e) {
+        e.preventDefault();
+        const form = e.target;
+        const input = form.querySelector('input');
+        const text = input.value.trim();
+        const postId = form.dataset.postId;
+
+        if (!text || !this.currentUser) return;
+
+        const newComment = {
+            uid: this.currentUser.uid,
+            userEmail: this.currentUser.email,
+            text
+        };
+
+        const ref = doc(this.db, "posts", postId);
+        await updateDoc(ref, { comments: arrayUnion(newComment) });
+        form.reset();
+    },
+
+    async deleteComment(e) {
+        const btn = e.target;
+        const postId = btn.dataset.deleteCommentId;
+        const index = parseInt(btn.dataset.commentIndex);
+
+        const ref = doc(this.db, "posts", postId);
+        const postSnap = await getDoc(ref);
+        if (!postSnap.exists()) return;
+
+        const postData = postSnap.data();
+        if (postData.comments[index].uid !== this.currentUser.uid) return; // Security check
+
+        const newComments = [...postData.comments];
+        newComments.splice(index, 1);
+        await updateDoc(ref, { comments: newComments });
+    },
+
+    // === Users & Chat ===
+    listenForUsers() {
+        const q = query(collection(this.db, "users"));
+        this.usersListener = onSnapshot(q, (snapshot) => {
+            this.elements.usersList.innerHTML = '';
+            snapshot.forEach((docSnap) => {
+                const user = docSnap.data();
+                if (user.uid === this.currentUser.uid) return;
+                
+                const userEl = document.createElement('a');
+                userEl.href = "#";
+                userEl.className = "user-item";
+                userEl.textContent = user.email;
+                userEl.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    this.openChat(user.uid, user.email);
+                });
+                this.elements.usersList.appendChild(userEl);
+            });
+        });
+    },
+
+    async openChat(targetUserId, targetUserEmail) {
+        this.chatListener(); // Unsubscribe from previous chat
+        this.currentChatId = [this.currentUser.uid, targetUserId].sort().join('_');
+        const chatRef = doc(this.db, 'chats', this.currentChatId);
+
+        const chatSnap = await getDoc(chatRef);
+        if (!chatSnap.exists()) {
+            await setDoc(chatRef, { participants: [this.currentUser.uid, targetUserId] });
+        }
+
+        this.elements.chatUserName.textContent = `Chat with ${targetUserEmail}`;
+        this.elements.chatDialog.showModal();
+
+        const messagesQuery = query(collection(this.db, 'chats', this.currentChatId, 'messages'), orderBy('createdAt', 'asc'));
+        this.chatListener = onSnapshot(messagesQuery, (snapshot) => {
+            this.elements.chatMessages.innerHTML = '';
+            snapshot.forEach(doc => {
+                const msg = doc.data();
+                const bubble = document.createElement('div');
+                bubble.className = 'message-bubble';
+                bubble.textContent = msg.text;
+                bubble.classList.add(msg.senderId === this.currentUser.uid ? 'sent' : 'received');
+                this.elements.chatMessages.appendChild(bubble);
+            });
+            this.elements.chatMessages.scrollTop = this.elements.chatMessages.scrollHeight;
+        });
+    },
+    
+    closeChat() {
+        this.chatListener(); // Unsubscribe
+        this.currentChatId = null;
+        this.elements.chatDialog.close();
+    },
+    
+    async sendMessage(e) {
+        e.preventDefault();
+        const text = this.elements.chatInput.value.trim();
+        if (!text || !this.currentChatId) return;
+
+        this.elements.chatInputForm.reset();
+        await addDoc(collection(this.db, 'chats', this.currentChatId, 'messages'), {
+            text,
+            senderId: this.currentUser.uid,
+            createdAt: serverTimestamp()
+        });
+    },
+};
+
+App.init();
