@@ -1,7 +1,7 @@
 // === Firebase SDK Imports (from import-map in index.html) ===
 import { initializeApp } from "firebase/app";
 import { getAnalytics } from "firebase/analytics";
-import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged } from "firebase/auth";
+import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged, updateProfile } from "firebase/auth";
 import { getFirestore, collection, addDoc, serverTimestamp, query, orderBy, onSnapshot, updateDoc, doc, setDoc, getDoc, arrayUnion, arrayRemove } from "firebase/firestore";
 
 const App = {
@@ -70,9 +70,9 @@ const App = {
             chatInput: document.getElementById("chatInput"),
         };
     },
-
-    // === Event Listeners (using Delegation) ===
-    initEventListeners() {
+    
+    // ... (initEventListeners and other methods remain the same) ...
+     initEventListeners() {
         this.elements.toggleAuthModeBtn.addEventListener("click", () => this.toggleAuthMode());
         this.elements.authForm.addEventListener("submit", (e) => this.handleAuthAction(e));
         this.elements.logoutBtn.addEventListener("click", () => signOut(this.auth));
@@ -106,7 +106,10 @@ const App = {
                 this.currentUser = null;
                 this.elements.mainContent.classList.add("hidden");
                 this.elements.logoutBtn.classList.add("hidden");
-                this.elements.authDialog.showModal();
+                // Check if dialog is already open to prevent errors
+                if (!this.elements.authDialog.open) {
+                    this.elements.authDialog.showModal();
+                }
                 this.postsListener(); // Unsubscribe
                 this.usersListener(); // Unsubscribe
                 this.closeChat();
@@ -123,25 +126,47 @@ const App = {
         this.elements.authForm.reset();
     },
 
+    // =================================================================
+    // === THIS IS THE CORRECTED FUNCTION ===
+    // =================================================================
     async handleAuthAction(e) {
         e.preventDefault();
         const email = this.elements.authEmail.value;
         const password = this.elements.authPassword.value;
+        this.elements.authActionBtn.disabled = true; // Prevent double submission
+        this.elements.authMessage.textContent = "";
+
         try {
             if (this.isLoginMode) {
                 await signInWithEmailAndPassword(this.auth, email, password);
             } else {
-                const cred = await createUserWithEmailAndPassword(this.auth, email, password);
-                await setDoc(doc(this.db, "users", cred.user.uid), {
-                    uid: cred.user.uid,
-                    email: cred.user.email
+                // Step 1: Create the user in Firebase Auth
+                const userCredential = await createUserWithEmailAndPassword(this.auth, email, password);
+                const user = userCredential.user;
+
+                // Step 2 (FIX): Update the new user's Auth profile with a display name
+                // We'll derive a name from the email for simplicity
+                const displayName = email.split('@')[0];
+                await updateProfile(user, { displayName });
+
+                // Step 3 (FIX): Create the user document in the 'users' collection in Firestore
+                // This is what other users' listeners will detect
+                await setDoc(doc(this.db, "users", user.uid), {
+                    uid: user.uid,
+                    email: user.email,
+                    displayName: displayName
                 });
             }
             this.elements.authForm.reset();
         } catch (err) {
             this.elements.authMessage.textContent = err.message;
+        } finally {
+            this.elements.authActionBtn.disabled = false; // Re-enable button
         }
     },
+    // =================================================================
+    // === END OF CORRECTION ===
+    // =================================================================
 
     // === Posts & Comments ===
     async createPost(e) {
@@ -153,6 +178,7 @@ const App = {
                 content,
                 authorId: this.currentUser.uid,
                 authorEmail: this.currentUser.email,
+                authorName: this.currentUser.displayName || this.currentUser.email.split('@')[0], // Use displayName
                 createdAt: serverTimestamp(),
                 likes: [],
                 comments: []
@@ -179,10 +205,11 @@ const App = {
         postEl.className = "card post";
         const liked = post.likes.includes(this.currentUser.uid);
         const time = post.createdAt?.toDate().toLocaleString() || "just now";
+        const authorName = post.authorName || post.authorEmail; // Fallback to email
 
         postEl.innerHTML = `
             <header class="post-header">
-                <div><div class="post-author">${post.authorEmail}</div><div class="post-time">${time}</div></div>
+                <div><div class="post-author">${authorName}</div><div class="post-time">${time}</div></div>
             </header>
             <div class="post-content"></div>
             <footer class="post-actions">
@@ -193,7 +220,7 @@ const App = {
         postEl.querySelector('.post-content').textContent = post.content;
         
         const commentsContainer = postEl.querySelector('.comments');
-        post.comments.forEach((comment, index) => {
+        (post.comments || []).forEach((comment, index) => {
             commentsContainer.appendChild(this.createCommentElement(id, index, comment));
         });
 
@@ -212,12 +239,13 @@ const App = {
     createCommentElement(postId, index, comment) {
         const commentEl = document.createElement('div');
         commentEl.className = 'comment-item';
+        const authorName = comment.userName || comment.userEmail;
         commentEl.innerHTML = `
-            <div class="comment-avatar">${comment.userEmail[0].toUpperCase()}</div>
+            <div class="comment-avatar">${authorName[0].toUpperCase()}</div>
             <div>
                 <div class="comment-body"></div>
                 <div class="comment-meta">
-                    <strong>${comment.userEmail}</strong>
+                    <strong>${authorName}</strong>
                     ${comment.uid === this.currentUser.uid ? `<button class="delete-comment" data-delete-comment-id="${postId}" data-comment-index="${index}">Delete</button>` : ""}
                 </div>
             </div>`;
@@ -242,7 +270,12 @@ const App = {
         const text = input.value.trim();
         const postId = form.dataset.postId;
         if (!text || !this.currentUser) return;
-        const newComment = { uid: this.currentUser.uid, userEmail: this.currentUser.email, text };
+        const newComment = { 
+            uid: this.currentUser.uid, 
+            userEmail: this.currentUser.email,
+            userName: this.currentUser.displayName || this.currentUser.email.split('@')[0],
+            text 
+        };
         const ref = doc(this.db, "posts", postId);
         await updateDoc(ref, { comments: arrayUnion(newComment) });
         form.reset();
@@ -270,25 +303,31 @@ const App = {
                 const userEl = document.createElement('a');
                 userEl.href = "#";
                 userEl.className = "user-item";
-                userEl.textContent = user.email;
+                userEl.textContent = user.displayName || user.email; // Use displayName
                 userEl.addEventListener('click', (e) => {
                     e.preventDefault();
-                    this.openChat(user.uid, user.email);
+                    this.openChat(user.uid, user.displayName || user.email);
                 });
                 this.elements.usersList.appendChild(userEl);
             });
         });
     },
 
-    async openChat(targetUserId, targetUserEmail) {
+    async openChat(targetUserId, targetUserName) {
         this.chatListener();
         this.currentChatId = [this.currentUser.uid, targetUserId].sort().join('_');
         const chatRef = doc(this.db, 'chats', this.currentChatId);
         const chatSnap = await getDoc(chatRef);
         if (!chatSnap.exists()) {
-            await setDoc(chatRef, { participants: [this.currentUser.uid, targetUserId] });
+            await setDoc(chatRef, { 
+                participants: [this.currentUser.uid, targetUserId],
+                participantNames: {
+                    [this.currentUser.uid]: this.currentUser.displayName,
+                    [targetUserId]: targetUserName
+                }
+            });
         }
-        this.elements.chatUserName.textContent = `Chat with ${targetUserEmail}`;
+        this.elements.chatUserName.textContent = `Chat with ${targetUserName}`;
         this.elements.chatDialog.showModal();
         const messagesQuery = query(collection(this.db, 'chats', this.currentChatId, 'messages'), orderBy('createdAt', 'asc'));
         this.chatListener = onSnapshot(messagesQuery, (snapshot) => {
@@ -306,9 +345,11 @@ const App = {
     },
     
     closeChat() {
-        this.chatListener();
+        if(this.chatListener) this.chatListener();
         this.currentChatId = null;
-        this.elements.chatDialog.close();
+        if(this.elements.chatDialog.open) {
+            this.elements.chatDialog.close();
+        }
     },
     
     async sendMessage(e) {
@@ -319,9 +360,11 @@ const App = {
         await addDoc(collection(this.db, 'chats', this.currentChatId, 'messages'), {
             text,
             senderId: this.currentUser.uid,
+            senderName: this.currentUser.displayName || this.currentUser.email.split('@')[0],
             createdAt: serverTimestamp()
         });
     },
 };
 
 App.init();
+
