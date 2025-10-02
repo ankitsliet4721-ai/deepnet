@@ -1,283 +1,665 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>DeepNet Social - AI Research Community</title>
-  <link rel="stylesheet" href="style.css" />
   <style>
-    .hidden { display: none; }
-    .auth-message { margin-top: 8px; font-size: 0.9rem; }
-    .auth-message.success { color: green; }
-    .auth-message.error { color: red; }
-    .notification { position: fixed; top: 20px; left: 50%; transform: translateX(-50%); padding: 12px 20px; background: #1877f2; color: #fff; border-radius: 6px; opacity: 0; transition: opacity 0.3s; }
-    .notification.show { opacity: 1; }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif; background-color: #18191a; color: #e4e6ea; line-height: 1.34; }
+    .login-modal { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0, 0, 0, 0.8); display: flex; justify-content: center; align-items: center; z-index: 2000; }
+    .login-content { background-color: #242526; border-radius: 12px; padding: 32px; width: 400px; max-width: 90%; position: relative; }
+    .login-header { text-align: center; margin-bottom: 24px; }
+    .login-logo { font-size: 32px; font-weight: bold; color: #1877f2; margin-bottom: 8px; }
+    .login-subtitle { color: #b0b3b8; font-size: 16px; }
+    .modal-close { position: absolute; top: 16px; right: 20px; font-size: 24px; font-weight: bold; color: #b0b3b8; cursor: pointer; background: none; border: none; padding: 4px; }
+    .auth-tabs { display: flex; margin-bottom: 20px; background-color: #3a3b3c; border-radius: 8px; padding: 4px; }
+    .auth-tab { flex: 1; background: none; border: none; padding: 12px; color: #b0b3b8; cursor: pointer; border-radius: 6px; font-weight: 600; transition: all 0.2s; }
+    .auth-tab.active { background-color: #1877f2; color: white; }
+    .auth-form { display: block; }
+    .auth-form.hidden { display: none; }
+    .form-group { margin-bottom: 16px; }
+    .form-input { width: 100%; padding: 14px 16px; background-color: #3a3b3c; border: 1px solid #3e4042; border-radius: 8px; color: #e4e6ea; font-size: 16px; }
+    .form-input:focus { outline: none; border-color: #1877f2; }
+    .form-input::placeholder { color: #b0b3b8; }
+    .auth-btn { width: 100%; padding: 14px; background-color: #1877f2; border: none; border-radius: 8px; color: white; font-size: 16px; font-weight: 600; cursor: pointer; transition: background-color 0.2s; }
+    .auth-btn:hover { background-color: #166fe5; }
+    .auth-message { margin-top: 12px; padding: 8px; border-radius: 6px; font-size: 14px; text-align: center; }
+    .auth-message.success { background-color: rgba(24, 119, 242, 0.2); color: #1877f2; }
+    .auth-message.error { background-color: rgba(244, 67, 54, 0.2); color: #f44336; }
+    .header { background-color: #242526; border-bottom: 1px solid #3e4042; position: fixed; top: 0; left: 0; right: 0; z-index: 1000; height: 60px; }
+    .header-content { display: flex; align-items: center; justify-content: space-between; max-width: 1200px; margin: 0 auto; padding: 0 16px; height: 100%; }
+    .logo { display: flex; align-items: center; gap: 8px; font-size: 24px; font-weight: bold; color: #1877f2; text-decoration: none; }
+    .search-bar { flex: 1; max-width: 320px; margin: 0 16px; }
+    .search-input { width: 100%; background-color: #3a3b3c; border: none; border-radius: 50px; padding: 10px 16px; color: #e4e6ea; font-size: 15px; }
+    .search-input::placeholder { color: #b0b3b8; }
+    .header-nav { display: flex; gap: 8px; }
+    .nav-item { padding: 12px 16px; border-radius: 8px; color: #b0b3b8; text-decoration: none; transition: all 0.2s; font-weight: 600; }
+    .nav-item:hover, .nav-item.active { background-color: #3a3b3c; color: #1877f2; }
+    .header-actions { display: flex; align-items: center; gap: 8px; }
+    .icon-btn { width: 40px; height: 40px; background-color: #3a3b3c; border: none; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: #e4e6ea; cursor: pointer; font-size: 16px; transition: background-color 0.2s; }
+    .icon-btn:hover { background-color: #4e4f50; }
+    .user-avatar { width: 32px; height: 32px; border-radius: 50%; cursor: pointer; object-fit: cover; }
+    .logout-btn { background-color: #e74c3c; color: white; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-weight: 600; transition: background-color 0.2s; }
+    .logout-btn:hover { background-color: #c0392b; }
+    .main-container { margin-top: 60px; display: flex; max-width: 1200px; margin-left: auto; margin-right: auto; gap: 20px; padding: 20px 16px; }
+    .left-sidebar { width: 280px; position: sticky; top: 80px; height: calc(100vh - 80px); overflow-y: auto; }
+    .sidebar-item { display: flex; align-items: center; padding: 8px 8px; border-radius: 8px; color: #e4e6ea; text-decoration: none; transition: background-color 0.2s; margin-bottom: 4px; }
+    .sidebar-item:hover { background-color: #3a3b3c; }
+    .sidebar-icon { width: 36px; height: 36px; margin-right: 12px; display: flex; align-items: center; justify-content: center; font-size: 20px; border-radius: 50%; background-color: #3a3b3c; }
+    .sidebar-text { font-weight: 500; }
+    .main-feed { flex: 1; max-width: 560px; }
+    .card { background-color: #242526; border-radius: 8px; padding: 16px; margin-bottom: 16px; border: 1px solid #3e4042; }
+    .post-composer { margin-bottom: 20px; }
+    .composer-header { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; }
+    .composer-input { background-color: #3a3b3c; border: none; border-radius: 24px; padding: 12px 16px; color: #e4e6ea; font-size: 16px; width: 100%; resize: none; min-height: 44px; font-family: inherit; }
+    .composer-input::placeholder { color: #b0b3b8; }
+    .composer-input:focus { outline: none; border: 2px solid #1877f2; }
+    .composer-tools { display: flex; justify-content: space-between; align-items: center; margin-top: 16px; padding-top: 12px; border-top: 1px solid #3e4042; }
+    .composer-options { display: flex; gap: 8px; }
+    .composer-btn { display: flex; align-items: center; gap: 8px; padding: 8px 12px; background: none; border: none; border-radius: 6px; color: #b0b3b8; cursor: pointer; transition: background-color 0.2s; font-size: 14px; font-weight: 600; }
+    .composer-btn:hover { background-color: #3a3b3c; }
+    .post-btn { background-color: #1877f2; color: white; border: none; border-radius: 6px; padding: 8px 20px; font-weight: 600; cursor: pointer; transition: background-color 0.2s; min-width: 80px; }
+    .post-btn:hover { background-color: #166fe5; }
+    .post-btn:disabled { background-color: #4a4a4a; cursor: not-allowed; }
+    .post { margin-bottom: 20px; }
+    .post-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+    .post-author-info { display: flex; align-items: center; gap: 8px; }
+    .post-author { font-weight: 600; color: #e4e6ea; }
+    .post-time { color: #b0b3b8; font-size: 13px; }
+    .post-menu { background: none; border: none; color: #b0b3b8; cursor: pointer; padding: 8px; border-radius: 50%; font-size: 16px; }
+    .post-menu:hover { background-color: #3a3b3c; }
+    .post-content { margin-bottom: 16px; line-height: 1.4; color: #e4e6ea; font-size: 16px; word-wrap: break-word; }
+    .post-stats { display: flex; justify-content: space-between; color: #b0b3b8; font-size: 13px; margin-bottom: 8px; padding-bottom: 8px; border-bottom: 1px solid #3e4042; }
+    .post-actions { display: flex; justify-content: space-around; }
+    .post-action { display: flex; align-items: center; gap: 8px; padding: 8px; background: none; border: none; border-radius: 6px; color: #b0b3b8; cursor: pointer; transition: background-color 0.2s; font-weight: 600; flex: 1; justify-content: center; }
+    .post-action:hover { background-color: #3a3b3c; }
+    .post-action.liked { color: #1877f2; }
+    .right-sidebar { width: 280px; position: sticky; top: 80px; height: calc(100vh - 80px); overflow-y: auto; }
+    .sidebar-section { margin-bottom: 20px; }
+    .sidebar-title { font-weight: 600; color: #b0b3b8; margin-bottom: 12px; font-size: 17px; }
+    .trending-item { display: flex; align-items: center; padding: 8px; border-radius: 8px; margin-bottom: 4px; cursor: pointer; transition: background-color 0.2s; }
+    .trending-item:hover { background-color: #3a3b3c; }
+    .trending-hash { color: #1877f2; font-weight: 600; margin-right: 8px; }
+    .suggested-user { display: flex; align-items: center; justify-content: space-between; padding: 8px; border-radius: 8px; margin-bottom: 8px; transition: background-color 0.2s; }
+    .suggested-user:hover { background-color: #3a3b3c; }
+    .suggested-info { display: flex; align-items: center; gap: 8px; }
+    .suggested-name { font-weight: 600; color: #e4e6ea; }
+    .suggested-field { color: #b0b3b8; font-size: 13px; }
+    .follow-btn { background-color: #1877f2; color: white; border: none; border-radius: 6px; padding: 6px 16px; font-weight: 600; cursor: pointer; font-size: 13px; }
+    .follow-btn:hover { background-color: #166fe5; }
+    .hidden { display: none !important; }
+    .notification { position: fixed; top: 80px; right: 20px; background-color: #1877f2; color: white; padding: 12px 20px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.3); z-index: 1500; opacity: 0; transform: translateX(100%); transition: all 0.3s ease; }
+    .notification.show { opacity: 1; transform: translateX(0); }
+    .notification.error { background-color: #e74c3c; }
+    .status { position: fixed; bottom: 20px; right: 20px; padding: 8px 12px; border-radius: 6px; font-size: 13px; font-weight: 600; z-index: 1500; }
+    .status.online { background-color: rgba(46, 160, 67, 0.2); color: #2ea043; border: 1px solid #2ea043; }
+    .status.offline { background-color: rgba(244, 67, 54, 0.2); color: #f44336; border: 1px solid #f44336; }
+    .comments { margin-top: 12px; border-top: 1px solid #3e4042; padding-top: 10px; }
+    .comment-item { display: flex; gap: 8px; margin-bottom: 8px; }
+    .comment-avatar { width: 28px; height: 28px; border-radius: 50%; object-fit: cover; }
+    .comment-body { background-color: #202223; padding: 8px 10px; border-radius: 10px; max-width: 100%; font-size: 14px; }
+    .comment-meta { color: #9aa0a6; font-size: 12px; margin-top: 4px; }
+    .comment-form { display: flex; gap: 8px; margin-top: 8px; }
+    .comment-input { flex: 1; background-color: #2b2d2f; border: 1px solid #3e4042; color: #e4e6ea; border-radius: 16px; padding: 8px 12px; font-size: 14px; }
+    .comment-btn { background-color: #1877f2; border: none; color: white; padding: 8px 12px; border-radius: 12px; cursor: pointer; font-weight: 600; }
+    .comment-btn:disabled { background-color: #4a4a4a; cursor: not-allowed; }
+    .delete-comment { background: transparent; border: none; color: #9aa0a6; cursor: pointer; font-size: 12px; margin-left: 8px; }
+    .delete-comment:hover { color: #e74c3c; }
+    @media (max-width: 1024px) { .left-sidebar, .right-sidebar { display: none; } .main-feed { max-width: none; } }
+    @media (max-width: 768px) { .search-bar { display: none; } .main-container { padding: 20px 8px; } .login-content { width: 95%; padding: 24px; } }
   </style>
 </head>
 <body>
-  <!-- Login Modal -->
-  <div id="loginModal" class="modal">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h2>Welcome to DeepNet Social</h2>
-        <button type="button" class="modal-close" onclick="closeLoginModal()">&times;</button>
+  <div id="loginModal" class="login-modal">
+    <div class="login-content">
+      <button class="modal-close" onclick="closeModal()">&times;</button>
+      <div class="login-header">
+        <div class="login-logo">🧠 DeepNet Social</div>
+        <div class="login-subtitle">Connect with AI researchers worldwide</div>
       </div>
-      <div class="modal-body">
-        <div class="auth-tabs">
-          <button type="button" class="auth-tab active" onclick="switchAuthTab('login')">Login</button>
-          <button type="button" class="auth-tab" onclick="switchAuthTab('signup')">Sign Up</button>
-        </div>
-        
-        <!-- LOGIN FORM -->
-        <form id="loginForm" class="auth-form">
-          <input type="email" name="email" id="loginEmail" placeholder="Enter email" required />
-          <input type="password" name="password" id="loginPassword" placeholder="Enter password" required />
-          <button type="submit" class="btn">Login</button>
-          <div id="loginMessage" class="auth-message"></div>
-        </form>
-
-        <!-- SIGNUP FORM -->
-        <form id="signupForm" class="auth-form hidden">
-          <input type="email" name="email" id="signupEmail" placeholder="Enter email" required />
-          <input type="password" name="password" id="signupPassword" placeholder="Create password" minlength="6" required />
-          <button type="submit" class="btn">Sign Up</button>
-          <div id="signupMessage" class="auth-message"></div>
-        </form>
+      <div class="auth-tabs">
+        <button class="auth-tab active" onclick="switchAuthTab('login')">Login</button>
+        <button class="auth-tab" onclick="switchAuthTab('signup')">Sign Up</button>
       </div>
+      <form id="loginForm" class="auth-form">
+        <div class="form-group"><input type="email" class="form-input" name="email" placeholder="Email address" required></div>
+        <div class="form-group"><input type="password" class="form-input" name="password" placeholder="Password" required></div>
+        <button type="submit" class="auth-btn">Log In</button>
+        <div id="loginMessage" class="auth-message"></div>
+      </form>
+      <form id="signupForm" class="auth-form hidden">
+        <div class="form-group"><input type="email" class="form-input" name="email" placeholder="Email address" required></div>
+        <div class="form-group"><input type="password" class="form-input" name="password" placeholder="Create password" minlength="6" required></div>
+        <button type="submit" class="auth-btn">Sign Up</button>
+        <div id="signupMessage" class="auth-message"></div>
+      </form>
     </div>
   </div>
 
-  <!-- Notification -->
   <div id="notification" class="notification"></div>
+  
+  <div id="status" class="status offline">🔄 Connecting...</div>
 
-  <!-- Main App Layout -->
   <div id="app" class="hidden">
     <header class="header">
       <div class="header-content">
-        <div class="logo">🧠 DeepNet Social</div>
-        <input type="text" id="searchInput" placeholder="Search posts..." />
-        <div>
-          <span id="currentUserAvatar">👩‍🔬</span>
-          <button onclick="logoutUser()">Logout</button>
+        <a href="#" class="logo"><span>🧠</span> DeepNet Social</a>
+        <div class="search-bar"><input type="text" class="search-input" placeholder="Search DeepNet Social"></div>
+        <nav class="header-nav">
+          <a href="#" class="nav-item active">Home</a><a href="#" class="nav-item">Research</a>
+          <a href="#" class="nav-item">Communities</a><a href="#" class="nav-item">Messages</a>
+        </nav>
+        <div class="header-actions">
+          <button class="icon-btn">🔔</button><button class="icon-btn">💬</button>
+          <img id="userAvatar" src="https://i.pravatar.cc/40?u=guest" class="user-avatar" alt="User Avatar">
+          <button class="logout-btn" onclick="logoutUser()">Logout</button>
         </div>
       </div>
     </header>
 
-    <main class="feed">
-      <div class="post-composer card">
-        <textarea id="postContent" placeholder="Share your research insights..."></textarea>
-        <button onclick="createPost()">Post</button>
-      </div>
-      <div id="postsContainer"></div>
-    </main>
+    <div class="main-container">
+      <aside class="left-sidebar">
+        <a href="#" class="sidebar-item">
+          <img id="sidebarAvatar" src="https://i.pravatar.cc/40?u=guest" class="sidebar-icon" style="border-radius: 50%;" alt="Profile">
+          <span class="sidebar-text" id="profileName">Your Profile</span>
+        </a>
+        <a href="#" class="sidebar-item"><div class="sidebar-icon">👥</div><span class="sidebar-text">AI Communities</span></a>
+        <a href="#" class="sidebar-item"><div class="sidebar-icon">📊</div><span class="sidebar-text">Research Analytics</span></a>
+        <a href="#" class="sidebar-item"><div class="sidebar-icon">📚</div><span class="sidebar-text">Papers & Publications</span></a>
+        <a href="#" class="sidebar-item"><div class="sidebar-icon">🔖</div><span class="sidebar-text">Saved Posts</span></a>
+        <a href="#" class="sidebar-item"><div class="sidebar-icon">⚙️</div><span class="sidebar-text">Settings</span></a>
+        <div id="usersList"></div> <!-- Add inside your <aside class="left-sidebar"> ... </aside> -->
+      </aside>
+
+      <main class="main-feed">
+        <div class="card post-composer">
+          <div class="composer-header">
+            <img id="composerAvatar" src="https://i.pravatar.cc/40?u=guest" class="user-avatar" alt="Your Avatar">
+            <textarea class="composer-input" id="postInput" placeholder="Share your research insights..." rows="3"></textarea>
+          </div>
+          <div class="composer-tools">
+            <div class="composer-options">
+              <button class="composer-btn">📝 Text</button><button class="composer-btn">💻 Code</button>
+              <button class="composer-btn">📄 Paper</button><button class="composer-btn">📊 Poll</button>
+            </div>
+            <button class="post-btn" id="postButton" onclick="createPost()">Post</button>
+          </div>
+        </div>
+        <div id="postsContainer"></div>
+      </main>
+
+      <aside class="right-sidebar">
+        <div class="sidebar-section">
+          <h3 class="sidebar-title">Trending in AI</h3>
+          <div class="trending-item"><span class="trending-hash">#</span><span>MachineLearning</span></div>
+          <div class="trending-item"><span class="trending-hash">#</span><span>NeurIPS2025</span></div>
+          <div class="trending-item"><span class="trending-hash">#</span><span>ComputerVision</span></div>
+          <div class="trending-item"><span class="trending-hash">#</span><span>NLP</span></div>
+          <div class="trending-item"><span class="trending-hash">#</span><span>DeepLearning</span></div>
+        </div>
+        <div class="sidebar-section">
+          <h3 class="sidebar-title">Suggested Connections</h3>
+          <div class="suggested-user">
+            <div class="suggested-info">
+              <img src="https://i.pravatar.cc/40?u=john" class="user-avatar" alt="Dr. John Smith">
+              <div><div class="suggested-name">Dr. John Smith</div><div class="suggested-field">Computer Vision</div></div>
+            </div><button class="follow-btn">Follow</button>
+          </div>
+          <div class="suggested-user">
+            <div class="suggested-info">
+              <img src="https://i.pravatar.cc/40?u=lisa" class="user-avatar" alt="Prof. Lisa Wang">
+              <div><div class="suggested-name">Prof. Lisa Wang</div><div class="suggested-field">NLP Research</div></div>
+            </div><button class="follow-btn">Follow</button>
+          </div>
+        </div>
+      </aside>
+    </div>
   </div>
 
-  <!-- Firebase -->
   <script type="module">
+    // Import Firebase modules
     import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-app.js";
-    import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, sendEmailVerification, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-auth.js";
+    import { 
+      getAuth, 
+      createUserWithEmailAndPassword, 
+      signInWithEmailAndPassword, 
+      onAuthStateChanged, 
+      signOut,
+      sendEmailVerification
+    } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-auth.js";
+    import { 
+      getFirestore, 
+      collection, 
+      addDoc, 
+      doc, 
+      getDoc,
+      deleteDoc, 
+      updateDoc, 
+      query, 
+      orderBy, 
+      onSnapshot, 
+      serverTimestamp,
+      arrayUnion,
+      arrayRemove,
+      increment
+    } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-firestore.js";
 
+    // Your web app's Firebase configuration
     const firebaseConfig = {
-      apiKey: "AIzaSyBytov9p2TGFudvnwQZ1hSi5f9oXaSKDAQ",
-      authDomain: "deepnet-social-backend.firebaseapp.com",
-      projectId: "deepnet-social-backend",
-      storageBucket: "deepnet-social-backend.firebasestorage.app",
-      messagingSenderId: "689173633913",
-      appId: "1:689173633913:web:b5290dc64ea8fd2b2f2da8",
-      measurementId: "G-B1ENWRY6JK"
+      apiKey: "AIzaSyALLWz-xkvroabNu_ug6ZVdDEmNF3O2eJs",
+      authDomain: "deep-9656b.firebaseapp.com",
+      projectId: "deep-9656b",
+      storageBucket: "deep-9656b.firebasestorage.app",
+      messagingSenderId: "786248126233",
+      appId: "1:786248126233:web:be8ebed2a68281204eff88",
+      measurementId: "G-FWC45EBFFP"
     };
+
+    // Initialize Firebase and its services
     const app = initializeApp(firebaseConfig);
     const auth = getAuth(app);
+    const db = getFirestore(app);
+    
+    // UI Elements and State
+    const loginModal = document.getElementById('loginModal');
+    const appDiv = document.getElementById('app');
+    const userAvatar = document.getElementById('userAvatar');
+    const sidebarAvatar = document.getElementById('sidebarAvatar');
+    const composerAvatar = document.getElementById('composerAvatar');
+    const profileName = document.getElementById('profileName');
+    const notification = document.getElementById('notification');
+    const status = document.getElementById('status');
+    const postsContainer = document.getElementById('postsContainer');
+    let postsListenerUnsubscribe = null;
 
-    // ================= Helpers =================
-    function showNotification(msg, type='success') {
-      const n = document.getElementById('notification');
-      n.textContent = msg; n.className = `notification ${type} show`;
-      setTimeout(()=>n.classList.remove('show'),3000);
-    }
-    function switchAuthTab(tab){
-      document.getElementById('loginForm').classList.toggle('hidden', tab!=='login');
-      document.getElementById('signupForm').classList.toggle('hidden', tab!=='signup');
-    }
-    function closeLoginModal(){ document.getElementById('loginModal').style.display='none'; }
-    function openLoginModal(){ document.getElementById('loginModal').style.display='block'; }
-    function showApp(){ document.getElementById('app').classList.remove('hidden'); closeLoginModal(); }
-
-    // ================= SIGNUP =================
-    document.getElementById('signupForm').addEventListener('submit', async (e)=>{
-      e.preventDefault();
-      const email = e.target.email.value.trim();
-      const password = e.target.password.value.trim();
-      const msg = document.getElementById('signupMessage');
-
-      try {
-        const cred = await createUserWithEmailAndPassword(auth, email, password);
-        await sendEmailVerification(cred.user);
-        msg.className = 'auth-message success';
-        msg.textContent = "✅ Account created. Verification email sent. Please verify before logging in.";
-        await signOut(auth);
-        e.target.reset();
-      } catch(err){
-        msg.className = 'auth-message error';
-        msg.textContent = `❌ ${err.message}`;
-      }
-    });
-
-    // ================= LOGIN =================
-    document.getElementById('loginForm').addEventListener('submit', async (e)=>{
-      e.preventDefault();
-      const email = e.target.email.value.trim();
-      const password = e.target.password.value.trim();
-      const msg = document.getElementById('loginMessage');
-
-      try {
-        const cred = await signInWithEmailAndPassword(auth, email, password);
-        if(!cred.user.emailVerified){
-          await signOut(auth);
-          msg.className='auth-message error';
-          msg.innerHTML = `
-            ❌ Email not verified.
-            <br><button id="resendBtn">Resend verification email</button>
-          `;
-          document.getElementById('resendBtn').onclick = async () => {
-            try {
-              const temp = await signInWithEmailAndPassword(auth,email,password);
-              await sendEmailVerification(temp.user);
-              await signOut(auth);
-              showNotification("Verification email resent!");
-            } catch(e2){ showNotification("Failed: " + e2.message,'error'); }
-          };
-          return;
-        }
-        msg.className='auth-message success';
-        msg.textContent = "✅ Login successful!";
-        e.target.reset();
-        setTimeout(()=>document.getElementById('loginModal').classList.add('hidden'),800);
-      } catch(err){
-        msg.className='auth-message error';
-        msg.textContent = `❌ ${err.message}`;
-      }
-    });
-
-    // ================= AUTH STATE =================
-    onAuthStateChanged(auth, user=>{
-      const loginModal = document.getElementById('loginModal');
-      const appDiv = document.getElementById('app');
-      const avatarEl = document.getElementById('currentUserAvatar');
-
-      if(user && user.emailVerified){
-        loginModal.classList.add('hidden');
-        appDiv.classList.remove('hidden');
-        avatarEl.textContent = user.email[0].toUpperCase();
-        renderPosts();
-      } else {
-        loginModal.classList.remove('hidden');
-        appDiv.classList.add('hidden');
-        avatarEl.textContent='👤';
-      }
-    });
-
-    // ================= LOGOUT =================
-    window.logoutUser = async ()=>{
-      try { await signOut(auth); showNotification('Logged out'); }
-      catch(e){ showNotification('Logout failed: '+e.message,'error'); }
-    };
-
-    // ================= POSTS =================
-    const STORAGE_KEY = "deepnet_posts";
-    function getPosts(){ try { return JSON.parse(localStorage.getItem(STORAGE_KEY))||[]; } catch{ return []; } }
-    function setPosts(p){ localStorage.setItem(STORAGE_KEY,JSON.stringify(p)); }
-
-    function createPost(){
-      const user = auth.currentUser;
-      if(!user || !user.emailVerified) { alert("Verify email first!"); return; }
-
-      const content = document.getElementById('postContent').value.trim();
-      if(!content) return;
-
-      const post = {
-        id: Date.now().toString(),
-        content,
-        authorName: user.email.split('@')[0],
-        authorEmail: user.email,
-        authorAvatar: `https://i.pravatar.cc/40?u=${user.uid}`,
-        createdAt: new Date().toISOString(),
-        likes:0, likedBy:[], commentList:[]
-      };
-
-      const posts = getPosts();
-      posts.unshift(post);
-      setPosts(posts);
-      document.getElementById('postContent').value='';
-      renderPosts();
+    // --- Utility Functions ---
+    function showNotification(message, type = 'success') {
+      notification.textContent = message;
+      notification.className = `notification ${type}`;
+      notification.classList.add('show');
+      setTimeout(() => notification.classList.remove('show'), 3000);
     }
 
-    function renderPosts(){
-      const container = document.getElementById('postsContainer');
-      container.innerHTML='';
-      getPosts().forEach(p=>{
-        const div = document.createElement('div');
-        div.className='card post';
-        div.dataset.postId = p.id;
-        const isLiked = p.likedBy.includes(auth.currentUser?.uid);
-        div.innerHTML=`
-          <div class="post-header">
-            <img src="${p.authorAvatar}" class="user-avatar">
-            <b>${p.authorName}</b> <small>${new Date(p.createdAt).toLocaleString()}</small>
+    function updateStatus(message, type = 'online') {
+      status.textContent = message;
+      status.className = `status ${type}`;
+    }
+
+    function formatTime(timestamp) {
+      if (!timestamp?.toDate) return 'a moment ago';
+      const date = timestamp.toDate();
+      const now = new Date();
+      const diff = now - date;
+      
+      if (diff < 60000) return 'Just now';
+      if (diff < 3600000) return `${Math.floor(diff / 60000)}m ago`;
+      if (diff < 86400000) return `${Math.floor(diff / 3600000)}h ago`;
+      if (diff < 604800000) return `${Math.floor(diff / 86400000)}d ago`;
+      return date.toLocaleDateString('en-IN');
+    }
+
+    // --- Render Functions ---
+    function createPostElement(postData) {
+      // This function now handles both 'original' and 'share' post types
+      if (postData.type === 'share') {
+        // It's a share, render the share wrapper + the original post inside
+        const originalPost = postData.originalPost;
+        const originalPostId = postData.originalPostId;
+        
+        const postDiv = document.createElement('div');
+        postDiv.className = 'card post';
+        
+        const isLiked = originalPost.likedBy?.includes(auth.currentUser?.uid);
+        const commentCount = originalPost.commentList?.length || 0;
+
+        postDiv.innerHTML = `
+          <div style="font-size: 14px; color: #b0b3b8; margin-bottom: 12px;">
+            🧠 <strong>${postData.sharerName}</strong> shared this
           </div>
-          <div class="post-content">${p.content}</div>
+          <div class="post-header">
+            <div class="post-author-info">
+              <img src="${originalPost.authorAvatar}" class="user-avatar" alt="${originalPost.authorName}">
+              <div>
+                <div class="post-author">${originalPost.authorName}</div>
+                <div class="post-time">${formatTime(originalPost.createdAt)}</div>
+              </div>
+            </div>
+            ${auth.currentUser?.uid === originalPost.authorId ? 
+              `<button class="post-menu" onclick="deletePost('${originalPostId}')">⋯</button>` 
+              : ''}
+          </div>
+          <div class="post-content">${originalPost.content.replace(/\n/g, '<br>')}</div>
           <div class="post-stats">
-            <span>${p.likes} reactions • <span class="comment-count">${p.commentList.length}</span> comments</span>
+            <span>${originalPost.likes || 0} reactions • ${commentCount} comments</span>
+            <span>${originalPost.shareCount || 0} shares</span>
           </div>
           <div class="post-actions">
-            <button onclick="toggleLike('${p.id}')" class="${isLiked?'liked':''}">👍 Like</button>
-            <button onclick="focusCommentInput('${p.id}')">💬 Comment</button>
-          </div>
-          <div class="comments">
-            <div class="comment-list"></div>
-            <input class="comment-input" placeholder="Write a comment..." onkeydown="commentKeydown(event,'${p.id}')">
+            <button class="post-action ${isLiked ? 'liked' : ''}" onclick="toggleLike('${originalPostId}')">👍 Like</button>
+            <button class="post-action" onclick="focusCommentInput('${originalPostId}')">💬 Comment</button>
+            <button class="post-action" onclick="sharePost('${originalPostId}')">↗️ Share</button>
           </div>
         `;
-        container.appendChild(div);
-        renderComments(div,p);
-      });
+        return postDiv;
+
+      } else {
+        // It's an original post, render as before
+        const postDiv = document.createElement('div');
+        postDiv.className = 'card post';
+        postDiv.dataset.postId = postData.id;
+
+        const isLiked = postData.likedBy?.includes(auth.currentUser?.uid);
+        const commentCount = postData.commentList?.length || 0;
+
+        postDiv.innerHTML = `
+          <div class="post-header">
+            <div class="post-author-info">
+              <img src="${postData.authorAvatar}" class="user-avatar" alt="${postData.authorName}">
+              <div>
+                <div class="post-author">${postData.authorName}</div>
+                <div class="post-time">${formatTime(postData.createdAt)}</div>
+              </div>
+            </div>
+            ${auth.currentUser?.uid === postData.authorId ? 
+              `<button class="post-menu" onclick="deletePost('${postData.id}')">⋯</button>` 
+              : ''}
+          </div>
+          <div class="post-content">${postData.content.replace(/\n/g, '<br>')}</div>
+          <div class="post-stats">
+            <span>${postData.likes || 0} reactions • ${commentCount} comments</span>
+            <span>${postData.shareCount || 0} shares</span>
+          </div>
+          <div class="post-actions">
+            <button class="post-action ${isLiked ? 'liked' : ''}" onclick="toggleLike('${postData.id}')">👍 Like</button>
+            <button class="post-action" onclick="focusCommentInput('${postData.id}')">💬 Comment</button>
+            <button class="post-action" onclick="sharePost('${postData.id}')">↗️ Share</button>
+          </div>
+          <div class="comments"><div class="comment-list"></div>
+            <div class="comment-form">
+              <input type="text" class="comment-input" placeholder="Write a comment..." onkeydown="commentKeydown(event, '${postData.id}')">
+              <button class="comment-btn" onclick="addComment('${postData.id}')">Post</button>
+            </div>
+          </div>
+        `;
+        renderComments(postDiv, postData);
+        return postDiv;
+      }
     }
 
-    function toggleLike(postId){
-      const posts = getPosts();
-      const idx = posts.findIndex(p=>p.id===postId); if(idx===-1) return;
-      const uid = auth.currentUser?.uid; if(!uid) return;
-      const liked = posts[idx].likedBy.includes(uid);
-      liked ? (posts[idx].likedBy = posts[idx].likedBy.filter(x=>x!==uid), posts[idx].likes--) : (posts[idx].likedBy.push(uid), posts[idx].likes++);
-      setPosts(posts); renderPosts();
-    }
-
-    function focusCommentInput(postId){ document.querySelector(`[data-post-id="${postId}"] .comment-input`).focus(); }
-    function commentKeydown(e,postId){ if(e.key==='Enter'&&!e.shiftKey){ e.preventDefault(); addComment(postId); } }
-    function addComment(postId){
-      const posts = getPosts();
-      const idx = posts.findIndex(p=>p.id===postId); if(idx===-1) return;
-      const input = document.querySelector(`[data-post-id="${postId}"] .comment-input`);
-      const text = input.value.trim(); if(!text) return;
-      posts[idx].commentList.push({ userId:auth.currentUser.uid, author:auth.currentUser.email.split('@')[0], text, createdAt:new Date().toISOString() });
-      setPosts(posts); renderPosts();
-    }
-    function renderComments(postEl, post){
-      const list = postEl.querySelector('.comment-list'); list.innerHTML='';
-      (post.commentList||[]).forEach((c,idx)=>{
+    function renderComments(postEl, post) {
+      const listEl = postEl.querySelector('.comment-list');
+      if (!listEl) return;
+      listEl.innerHTML = '';
+      (post.commentList || []).forEach((comment) => {
         const item = document.createElement('div');
-        item.innerHTML = `<b>${c.author}</b>: ${c.text} ${auth.currentUser?.uid===c.userId?`<button onclick="deleteComment('${post.id}',${idx})">Delete</button>`:''}`;
-        list.appendChild(item);
+        item.className = 'comment-item';
+        item.innerHTML = `
+          <img src="${comment.avatar}" class="comment-avatar" alt="${comment.author}">
+          <div>
+            <div class="comment-body">
+              <strong>${comment.author}</strong><br>${comment.text.replace(/\n/g, '<br>')}
+            </div>
+            <div class="comment-meta">
+              ${formatTime(comment.createdAt)}
+              ${auth.currentUser?.uid === comment.userId ? 
+                `<button class="delete-comment" onclick="deleteComment('${post.id}', '${comment.id}')">Delete</button>` 
+                : ''}
+            </div>
+          </div>
+        `;
+        listEl.appendChild(item);
       });
     }
-    function deleteComment(postId,idx){ const posts=getPosts(); const i=posts.findIndex(p=>p.id===postId); if(i===-1) return; if(auth.currentUser.uid!==posts[i].commentList[idx].userId) return alert("Not allowed"); posts[i].commentList.splice(idx,1); setPosts(posts); renderPosts(); }
 
-    document.getElementById('searchInput').addEventListener('input', e=>{
-      const q = e.target.value.toLowerCase();
-      document.querySelectorAll('.post').forEach(p=>{ p.style.display = p.innerText.toLowerCase().includes(q)?'block':'none'; });
+    function displayPosts(posts) {
+      postsContainer.innerHTML = '';
+      if (posts.length === 0) {
+        postsContainer.innerHTML = `<div class="card" style="text-align: center; padding: 40px;"><h3>Welcome! 🎉</h3><p>Be the first to share your insights!</p></div>`;
+        updateStatus('📚 Ready to post', 'online');
+        return;
+      }
+      posts.forEach(post => {
+        const postElement = createPostElement(post);
+        postsContainer.appendChild(postElement);
+      });
+      updateStatus(`📡 Online • ${posts.length} posts loaded`, 'online');
+    }
+
+    // --- Firestore Interaction ---
+    function listenForPosts() {
+      if (postsListenerUnsubscribe) postsListenerUnsubscribe();
+      const q = query(collection(db, 'posts'), orderBy('createdAt', 'desc'));
+      postsListenerUnsubscribe = onSnapshot(q, (snapshot) => {
+        const posts = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        displayPosts(posts);
+      }, (error) => console.error("Error fetching posts:", error));
+    }
+
+    // --- Global Functions (for onclick) ---
+    window.createPost = async function() {
+      const postInput = document.getElementById('postInput');
+      const content = postInput.value.trim();
+      if (!content) return;
+      const user = auth.currentUser;
+      if (!user) return showNotification('Please log in to post!', 'error');
+
+      document.getElementById('postButton').disabled = true;
+      try {
+        await addDoc(collection(db, "posts"), {
+          type: 'original',
+          content: content,
+          authorId: user.uid,
+          authorName: user.displayName || user.email.split('@')[0],
+          authorAvatar: user.photoURL || `https://i.pravatar.cc/40?u=${user.uid}`,
+          createdAt: serverTimestamp(),
+          likes: 0,
+          likedBy: [],
+          commentList: [],
+          shareCount: 0
+        });
+        postInput.value = '';
+      } catch (error) {
+        console.error('Error creating post:', error);
+      } finally {
+        document.getElementById('postButton').disabled = false;
+      }
+    };
+
+    window.sharePost = async function(originalPostId) {
+      const user = auth.currentUser;
+      if (!user) return showNotification('Please log in to share!', 'error');
+
+      const originalPostRef = doc(db, 'posts', originalPostId);
+      try {
+        const postSnap = await getDoc(originalPostRef);
+        if (!postSnap.exists()) return showNotification('This post no longer exists.', 'error');
+
+        const originalPostData = postSnap.data();
+
+        await addDoc(collection(db, "posts"), {
+          type: 'share',
+          sharerId: user.uid,
+          sharerName: user.displayName || user.email.split('@')[0],
+          sharerAvatar: user.photoURL || `https://i.pravatar.cc/40?u=${user.uid}`,
+          createdAt: serverTimestamp(),
+          originalPostId: originalPostId,
+          originalPost: originalPostData
+        });
+
+        await updateDoc(originalPostRef, {
+          shareCount: increment(1)
+        });
+
+        showNotification('Post shared successfully!', 'success');
+      } catch (error) {
+        console.error("Error sharing post:", error);
+      }
+    };
+    
+    window.deletePost = async function(postId) {
+        if (!confirm('Are you sure you want to delete this post?')) return;
+        try {
+            await deleteDoc(doc(db, "posts", postId));
+            showNotification('Post deleted successfully!');
+        } catch (error) {
+            console.error('Error deleting post:', error);
+        }
+    };
+
+    window.toggleLike = async function(postId) {
+      const user = auth.currentUser;
+      if (!user) return showNotification('Please log in to like posts!', 'error');
+
+      const postRef = doc(db, 'posts', postId);
+      try {
+        const postSnap = await getDoc(postRef);
+        if (!postSnap.exists()) return;
+        const postData = postSnap.data();
+        
+        if (postData.likedBy?.includes(user.uid)) {
+          await updateDoc(postRef, {
+            likedBy: arrayRemove(user.uid),
+            likes: increment(-1)
+          });
+        } else {
+          await updateDoc(postRef, {
+            likedBy: arrayUnion(user.uid),
+            likes: increment(1)
+          });
+        }
+      } catch (error) {
+        console.error("Error toggling like:", error);
+      }
+    };
+
+    window.addComment = async function(postId) {
+      const user = auth.currentUser;
+      if (!user) return showNotification('Please log in to comment!', 'error');
+      
+      const input = document.querySelector(`[data-post-id="${postId}"] .comment-input`);
+      const text = input.value.trim();
+      if (!text) return;
+
+      const comment = {
+        id: Date.now().toString() + user.uid.slice(0, 5),
+        userId: user.uid,
+        author: user.displayName || user.email.split('@')[0],
+        avatar: user.photoURL || `https://i.pravatar.cc/28?u=${user.uid}`,
+        text: text,
+        createdAt: new Date()
+      };
+
+      try {
+        await updateDoc(doc(db, 'posts', postId), { commentList: arrayUnion(comment) });
+        input.value = '';
+      } catch (error) {
+        console.error("Error adding comment:", error);
+      }
+    };
+    
+    window.deleteComment = async function(postId, commentId) {
+        const user = auth.currentUser;
+        if (!user) return;
+        try {
+            const postRef = doc(db, 'posts', postId);
+            const postSnap = await getDoc(postRef);
+            if (!postSnap.exists()) return;
+            
+            const commentList = postSnap.data().commentList || [];
+            const commentToDelete = commentList.find(c => c.id === commentId && c.userId === user.uid);
+
+            if (commentToDelete) {
+                await updateDoc(postRef, { commentList: arrayRemove(commentToDelete) });
+            } else {
+                showNotification("You can only delete your own comments.", "error");
+            }
+        } catch (error) {
+            console.error("Error deleting comment:", error);
+        }
+    };
+
+    window.focusCommentInput = (postId) => document.querySelector(`[data-post-id="${postId}"] .comment-input`)?.focus();
+    window.commentKeydown = (e, postId) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); addComment(postId); } };
+    window.switchAuthTab = (tab) => {
+        document.getElementById('loginForm').classList.toggle('hidden', tab !== 'login');
+        document.getElementById('signupForm').classList.toggle('hidden', tab === 'login');
+        document.querySelectorAll('.auth-tab').forEach((t, i) => t.classList.toggle('active', i === (tab === 'login' ? 0 : 1)));
+    };
+    window.closeModal = () => loginModal.classList.add('hidden');
+    window.logoutUser = () => signOut(auth);
+
+    // --- Auth Handlers & App Initialization ---
+    document.getElementById('signupForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const email = e.target.email.value;
+      const password = e.target.password.value;
+      const messageEl = document.getElementById('signupMessage');
+      try {
+        const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+        await sendEmailVerification(userCredential.user);
+        await signOut(auth); // Sign out immediately
+        messageEl.className = 'auth-message success';
+        messageEl.textContent = '✅ Account created! Please check your inbox to verify your email before logging in.';
+        e.target.reset();
+      } catch (error) {
+        messageEl.className = 'auth-message error';
+        messageEl.textContent = `❌ ${error.message}`;
+      }
     });
 
-    window.onload = ()=>{ switchAuthTab('login'); };
+    document.getElementById('loginForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const email = e.target.email.value;
+      const password = e.target.password.value;
+      const messageEl = document.getElementById('loginMessage');
+      try {
+        const userCredential = await signInWithEmailAndPassword(auth, email, password);
+        if (userCredential.user.emailVerified) {
+            messageEl.className = 'auth-message success';
+            messageEl.textContent = '✅ Login successful!';
+            e.target.reset();
+        } else {
+            await signOut(auth);
+            messageEl.className = 'auth-message error';
+            messageEl.textContent = '❌ Please verify your email first. A new link was sent.';
+            await sendEmailVerification(userCredential.user);
+        }
+      } catch (error) {
+        messageEl.className = 'auth-message error';
+        messageEl.textContent = `❌ ${error.message}`;
+      }
+    });
+
+    onAuthStateChanged(auth, (user) => {
+      if (user && user.emailVerified) {
+        appDiv.classList.remove('hidden');
+        loginModal.classList.add('hidden');
+        const avatarUrl = user.photoURL || `https://i.pravatar.cc/40?u=${user.uid}`;
+        const userName = user.displayName || user.email.split('@')[0];
+        [userAvatar, sidebarAvatar, composerAvatar].forEach(el => el.src = avatarUrl);
+        profileName.textContent = userName;
+        listenForPosts();
+        updateStatus('✅ Logged in', 'online');
+      } else {
+        appDiv.classList.add('hidden');
+        loginModal.classList.remove('hidden');
+        if (postsListenerUnsubscribe) postsListenerUnsubscribe();
+        postsContainer.innerHTML = '';
+        updateStatus('🔄 Please log in', 'offline');
+      }
+    });
   </script>
+<!-- Add this just before </body> -->
+<div id="chatModal" class="chat-modal hidden">
+  <div class="chat-header">
+    <span id="chatUserName"></span>
+    <button id="chatCloseBtn" class="chat-close-btn">&times;</button>
+  </div>
+  <div class="chat-messages" id="chatMessages"></div>
+  <form id="chatInputForm" class="chat-input-form">
+    <input type="text" id="chatInput" class="chat-input" placeholder="Aa" autocomplete="off" />
+    <button type="submit" class="chat-send-btn">Send</button>
+  </form>
+</div>
 </body>
 </html>
