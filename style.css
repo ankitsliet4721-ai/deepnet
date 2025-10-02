@@ -1655,3 +1655,29 @@ select.form-control {
 .right-sidebar::-webkit-scrollbar-thumb:hover {
   background: var(--color-text-secondary);
 }
+.notification {
+  position: fixed;
+  top: 80px;
+  right: 20px;
+  background-color: #1877f2;
+  color: white;
+  padding: 12px 20px;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+  z-index: 1500;
+  opacity: 0;
+  transform: translateX(100%);
+  transition: all 0.3s ease;
+  pointer-events: none;
+  font-weight: 600;
+}
+
+.notification.show {
+  opacity: 1;
+  transform: translateX(0);
+  pointer-events: auto;
+}
+
+.notification.error {
+  background-color: #e74c3c;
+}
