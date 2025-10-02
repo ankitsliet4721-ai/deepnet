@@ -105,7 +105,144 @@ function formatTime(timestamp) {
 function getChatId(userId1, userId2) {
   return [userId1, userId2].sort().join('_');
 }
+// --- User Presence Functions ---
 
+async function updateUserPresence(isOnline) {
+if (!currentUser) return;
+
+try {
+await setDoc(doc(db, 'users', currentUser.uid), {
+uid: currentUser.uid,
+displayName: currentUser.displayName || currentUser.email.split('@'),
+email: currentUser.email,
+photoURL: currentUser.photoURL || https://i.pravatar.cc/40?u=${currentUser.uid},
+isOnline: isOnline,
+lastSeen: serverTimestamp()
+}, { merge: true });
+} catch (error) {
+  console.error('Error updating presence:', error);
+}
+}
+// --- Online Users List ---
+
+function listenForOnlineUsers() {
+if (onlineUsersListener) onlineUsersListener(); // Unsubscribe old listener
+
+// Filter for users online or just get all users depending on your preference here
+const q = query(collection(db, 'users'));
+
+onlineUsersListener = onSnapshot(q, (snapshot) => {
+const users = snapshot.docs
+.map(doc => doc.data())
+.filter(user => user.uid !== currentUser?.uid); // Exclude self
+  renderOnlineUsers(users);
+}, error => {
+console.error('Error listening for user presence:', error);
+});
+}
+
+function renderOnlineUsers(users) {
+if (!onlineUsersList) return;
+onlineUsersList.innerHTML = '';
+
+if (users.length === 0) {
+onlineUsersList.innerHTML = '<div class="no-users-msg">No other users found.</div>';
+return;
+}
+  users.forEach(user => {
+const userEl = document.createElement('div');
+userEl.className = 'online-user-item';
+userEl.title = user.isOnline ? 'Online' : 'Offline';
+    userEl.onclick = () => openChat(user);
+
+userEl.innerHTML = `
+  <div class="online-user-avatar">
+    <img src="${user.photoURL}" class="user-avatar" alt="${user.displayName}">
+    ${user.isOnline ? '<div class="online-indicator"></div>' : ''}
+  </div>
+  <span class="online-user-name">${user.displayName}</span>
+`;
+onlineUsersList.appendChild(userEl);
+});
+}
+
+// --- Chat Functions ---
+
+function openChat(user) {
+currentChatUser = user;
+chatUserAvatar.src = user.photoURL;
+chatUserName.textContent = user.displayName;
+chatUserStatus.textContent = user.isOnline ? 'Online' : 'Offline';
+chatModal.classList.remove('hidden');
+chatInput.value = '';
+chatInput.focus();
+
+if (messagesListener) messagesListener();
+  const chatId = getChatId(currentUser.uid, user.uid);
+const messagesRef = collection(db, 'chats', chatId, 'messages');
+const messagesQuery = query(messagesRef, orderBy('timestamp', 'asc'));
+
+messagesListener = onSnapshot(messagesQuery, snapshot => {
+const messages = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+renderMessages(messages);
+}, error => {
+console.error('Error fetching chat messages:', error);
+});
+}
+function closeChat() {
+chatModal.classList.add('hidden');
+if (messagesListener) messagesListener();
+currentChatUser = null;
+chatMessages.innerHTML = '';
+}
+
+function renderMessages(messages) {
+chatMessages.innerHTML = '';
+messages.forEach(msg => {
+const msgDiv = document.createElement('div');
+msgDiv.className = message ${msg.senderId === currentUser.uid ? 'sent' : 'received'};
+msgDiv.textContent = msg.text;
+chatMessages.appendChild(msgDiv);
+});
+chatMessages.scrollTop = chatMessages.scrollHeight;
+}
+
+async function sendMessage() {
+const text = chatInput.value.trim();
+if (!text || !currentChatUser) return;
+const chatId = getChatId(currentUser.uid, currentChatUser.uid);
+
+try {
+// Ensure chat doc exists
+await setDoc(doc(db, 'chats', chatId), {
+participants: [currentUser.uid, currentChatUser.uid],
+lastMessage: text,
+lastMessageTime: serverTimestamp(),
+}, { merge: true });
+// Add message
+await addDoc(collection(db, `chats/${chatId}/messages`), {
+  text,
+  senderId: currentUser.uid,
+  timestamp: serverTimestamp()
+});
+
+chatInput.value = '';
+stopTyping();
+} catch (error) {
+console.error('Error sending message:', error);
+showNotification('Message send failed', 'error');
+}
+}
+
+// Typing indicator (basic debounced)
+function handleTyping() {
+clearTimeout(typingTimer);
+// TODO: Implement presence typing state (optional)
+typingTimer = setTimeout(stopTyping, 3000);
+}
+function stopTyping() {
+clearTimeout(typingTimer);
+}
 // --- Authentication Functions ---
 function setupAuthEventListeners() {
   const loginForm = document.getElementById('loginForm');
