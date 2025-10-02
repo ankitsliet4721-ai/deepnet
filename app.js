@@ -49,7 +49,7 @@ let chatListenerUnsubscribe = null;
 
 // ==================== Authentication Handlers ====================
 
-// SIGNUP with user document creation for users collection
+// SIGNUP: add user to Firestore users on signup
 document.getElementById('signupForm').addEventListener('submit', async (e) => {
   e.preventDefault();
   const email = e.target.email.value.trim();
@@ -59,7 +59,6 @@ document.getElementById('signupForm').addEventListener('submit', async (e) => {
   try {
     const cred = await createUserWithEmailAndPassword(auth, email, password);
     await sendEmailVerification(cred.user);
-    // Add user to Firestore users collection
     await setDoc(doc(db, 'users', cred.user.uid), {
       uid: cred.user.uid,
       email: cred.user.email
@@ -122,7 +121,7 @@ onAuthStateChanged(auth, user => {
     avatarEl.textContent = user.email[0].toUpperCase();
 
     renderPosts();
-    listenForUsers();  // NEW: start listening for user list to enable chats
+    listenForUsers();  // LISTEN FOR USERS FOR CHAT
   } else {
     loginModal.classList.remove('hidden');
     appDiv.classList.add('hidden');
@@ -229,12 +228,12 @@ function deleteComment(postId,idx){ const posts=getPosts(); const i=posts.findIn
 
 // ============== USER MESSAGING FEATURE ===================
 
-// Listen for all users to populate user list in sidebar
+// Listen for all users to populate user list container
 function listenForUsers() {
   const usersRef = collection(db, 'users');
   const q = query(usersRef);
   onSnapshot(q, snapshot => {
-    usersList.innerHTML = '';
+    usersList.innerHTML = '<h3>Users</h3>';
     snapshot.forEach(doc => {
       const user = doc.data();
       if (user.uid === auth.currentUser.uid) return; // Skip current user
@@ -243,7 +242,8 @@ function listenForUsers() {
       userElem.textContent = user.email.split('@')[0];
       userElem.style.display = "block";
       userElem.style.cursor = "pointer";
-      userElem.style.margin = "5px 0";
+      userElem.style.padding = "8px";
+      userElem.style.borderBottom = "1px solid #ccc";
       userElem.onclick = (e) => {
         e.preventDefault();
         openChat(user.uid, user.email.split('@')[0]);
