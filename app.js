@@ -105,6 +105,17 @@ function formatTime(timestamp) {
 function getChatId(userId1, userId2) {
   return [userId1, userId2].sort().join('_');
 }
+
+function showNotification(message, type = 'success') {
+  const notification = document.getElementById('notification');
+  if (!notification) return;
+  notification.textContent = message;
+  notification.className = `notification ${type}`;
+  notification.classList.add('show');
+  setTimeout(() => notification.classList.remove('show'), 3000);
+}
+
+
 // --- User Presence Functions ---
 
 async function updateUserPresence(isOnline) {
@@ -169,23 +180,34 @@ onlineUsersList.appendChild(userEl);
 // --- Chat Functions ---
 
 function openChat(user) {
-currentChatUser = user;
-chatUserAvatar.src = user.photoURL;
-chatUserName.textContent = user.displayName;
-chatUserStatus.textContent = user.isOnline ? 'Online' : 'Offline';
-chatModal.classList.remove('hidden');
-chatInput.value = '';
-chatInput.focus();
+  currentChatUser = user;
+  chatUserAvatar.src = user.photoURL;
+  chatUserName.textContent = user.displayName;
+  chatUserStatus.textContent = user.isOnline ? 'Online' : 'Offline';
+  chatModal.classList.remove('hidden');
+  chatInput.value = '';
+  chatInput.focus();
 
-if (messagesListener) messagesListener();
+  if (messagesListener) messagesListener();
+
   const chatId = getChatId(currentUser.uid, user.uid);
-const messagesRef = collection(db, 'chats', chatId, 'messages');
-const messagesQuery = query(messagesRef, orderBy('timestamp', 'asc'));
+  const messagesRef = collection(db, 'chats', chatId, 'messages');
+  const messagesQuery = query(messagesRef, orderBy('timestamp', 'asc'));
 
-messagesListener = onSnapshot(messagesQuery, snapshot => {
-const messages = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-renderMessages(messages);
-}, error => {
+  messagesListener = onSnapshot(messagesQuery, (snapshot) => {
+    snapshot.docChanges().forEach(change => {
+      if (change.type === 'added') {
+        const msg = change.doc.data();
+        if (msg.senderId !== currentUser.uid) {
+          showNotification(`New message from ${currentChatUser.displayName || 'a user'}`, 'success');
+        }
+      }
+    });
+    const messages = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    renderMessages(messages);
+  });
+}
+error => {
 console.error('Error fetching chat messages:', error);
 });
 }
