@@ -112,12 +112,12 @@ if (!currentUser) return;
 
 try {
 await setDoc(doc(db, 'users', currentUser.uid), {
-uid: currentUser.uid,
-displayName: currentUser.displayName || currentUser.email.split('@'),
-email: currentUser.email,
-photoURL: currentUser.photoURL || https://i.pravatar.cc/40?u=${currentUser.uid},
-isOnline: isOnline,
-lastSeen: serverTimestamp()
+  uid: currentUser.uid,
+  displayName: currentUser.displayName || currentUser.email.split('@'),
+  email: currentUser.email,
+  photoURL: currentUser.photoURL || `https://i.pravatar.cc/40?u=${currentUser.uid}`,
+  isOnline: isOnline,
+  lastSeen: serverTimestamp()
 }, { merge: true });
 } catch (error) {
   console.error('Error updating presence:', error);
@@ -208,32 +208,33 @@ chatMessages.scrollTop = chatMessages.scrollHeight;
 }
 
 async function sendMessage() {
-const text = chatInput.value.trim();
-if (!text || !currentChatUser) return;
-const chatId = getChatId(currentUser.uid, currentChatUser.uid);
+  const text = chatInput.value.trim();
+  if (!text || !currentChatUser) return;
 
-try {
-// Ensure chat doc exists
-await setDoc(doc(db, 'chats', chatId), {
-participants: [currentUser.uid, currentChatUser.uid],
-lastMessage: text,
-lastMessageTime: serverTimestamp(),
-}, { merge: true });
-// Add message
-await addDoc(collection(db, `chats/${chatId}/messages`), {
-  text,
-  senderId: currentUser.uid,
-  timestamp: serverTimestamp()
-});
+  const chatId = getChatId(currentUser.uid, currentChatUser.uid);
 
-chatInput.value = '';
-stopTyping();
-} catch (error) {
-console.error('Error sending message:', error);
-showNotification('Message send failed', 'error');
+  try {
+    // Ensure chat doc exists or create it
+    await setDoc(doc(db, 'chats', chatId), {
+      participants: [currentUser.uid, currentChatUser.uid],
+      lastMessage: text,
+      lastMessageTime: serverTimestamp(),
+    }, { merge: true });
+
+    // Add message
+    await addDoc(collection(db, `chats/${chatId}/messages`), {
+      text,
+      senderId: currentUser.uid,
+      timestamp: serverTimestamp()
+    });
+
+    chatInput.value = '';
+    stopTyping();
+  } catch (error) {
+    console.error('Error sending message:', error);
+    showNotification('Message send failed: ' + error.message, 'error');
+  }
 }
-}
-
 // Typing indicator (basic debounced)
 function handleTyping() {
 clearTimeout(typingTimer);
