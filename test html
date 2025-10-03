@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <style>
+    .notification {
+      position: fixed;
+      top: 80px;
+      right: 20px;
+      background-color: #1877f2;
+      color: white;
+      padding: 12px 20px;
+      border-radius: 8px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+      z-index: 1500;
+      opacity: 0;
+      transform: translateX(100%);
+      transition: all 0.3s ease;
+      pointer-events: none;
+      font-weight: 600;
+    }
+    .notification.show {
+      opacity: 1;
+      transform: translateX(0);
+      pointer-events: auto;
+    }
+  </style>
+</head>
+<body>
+  <button onclick="showNotification('It works!')">Show Notification</button>
+  <div id="notification" class="notification"></div>
+  <script>
+    function showNotification(msg) {
+      const el = document.getElementById('notification');
+      el.textContent = msg;
+      el.classList.add('show');
+      setTimeout(() => el.classList.remove('show'), 3000);
+    }
+  </script>
+</body>
+</html>
