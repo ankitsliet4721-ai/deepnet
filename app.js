@@ -60,7 +60,6 @@ const userAvatar = document.getElementById('userAvatar');
 const sidebarAvatar = document.getElementById('sidebarAvatar');
 const composerAvatar = document.getElementById('composerAvatar');
 const profileName = document.getElementById('profileName');
-const notification = document.getElementById('notification');
 const status = document.getElementById('status');
 const postsContainer = document.getElementById('postsContainer');
 const postInput = document.getElementById('postInput');
@@ -78,15 +77,23 @@ const typingIndicator = document.getElementById('typingIndicator');
 
 // --- Utility Functions ---
 function showNotification(message, type = 'success') {
+  const notification = document.getElementById('notification');
+  if (!notification) return;
+  
   notification.textContent = message;
   notification.className = `notification ${type}`;
   notification.classList.add('show');
-  setTimeout(() => notification.classList.remove('show'), 3000);
+  
+  setTimeout(() => {
+    notification.classList.remove('show');
+  }, 3000);
 }
 
 function updateStatus(message, type = 'online') {
-  status.textContent = message;
-  status.className = `status ${type}`;
+  if (status) {
+    status.textContent = message;
+    status.className = `status ${type}`;
+  }
 }
 
 function formatTime(timestamp) {
@@ -106,173 +113,202 @@ function getChatId(userId1, userId2) {
   return [userId1, userId2].sort().join('_');
 }
 
-function showNotification(message, type = 'success') {
-  const notification = document.getElementById('notification');
-  if (!notification) return;
-  notification.textContent = message;
-  notification.className = `notification ${type}`;
-  notification.classList.add('show');
-  setTimeout(() => notification.classList.remove('show'), 3000);
-}
-
-
 // --- User Presence Functions ---
-
 async function updateUserPresence(isOnline) {
-if (!currentUser) return;
+  if (!currentUser) return;
+  
+  try {
+    await setDoc(doc(db, 'users', currentUser.uid), {
+      uid: currentUser.uid,
+      displayName: currentUser.displayName || currentUser.email.split('@')[0], // Fixed here
+      email: currentUser.email,
+      photoURL: currentUser.photoURL || `https://i.pravatar.cc/40?u=${currentUser.uid}`,
+      isOnline: isOnline,
+      lastSeen: serverTimestamp()
+    }, { merge: true });
+  } catch (error) {
+    console.error('Error updating presence:', error);
+  }
+}
 
-try {
-await setDoc(doc(db, 'users', currentUser.uid), {
-  uid: currentUser.uid,
-  displayName: currentUser.displayName || currentUser.email.split('@'),
-  email: currentUser.email,
-  photoURL: currentUser.photoURL || `https://i.pravatar.cc/40?u=${currentUser.uid}`,
-  isOnline: isOnline,
-  lastSeen: serverTimestamp()
-}, { merge: true });
-} catch (error) {
-  console.error('Error updating presence:', error);
-}
-}
 // --- Online Users List ---
-
 function listenForOnlineUsers() {
-if (onlineUsersListener) onlineUsersListener(); // Unsubscribe old listener
-
-// Filter for users online or just get all users depending on your preference here
-const q = query(collection(db, 'users'));
-
-onlineUsersListener = onSnapshot(q, (snapshot) => {
-const users = snapshot.docs
-.map(doc => doc.data())
-.filter(user => user.uid !== currentUser?.uid); // Exclude self
-  renderOnlineUsers(users);
-}, error => {
-console.error('Error listening for user presence:', error);
-});
+  if (onlineUsersListener) onlineUsersListener();
+  
+  // Get all users, both online and offline
+  const q = query(collection(db, 'users'));
+  onlineUsersListener = onSnapshot(q, (snapshot) => {
+    const users = snapshot.docs
+      .map(doc => doc.data())
+      .filter(user => user.uid !== currentUser?.uid); // Exclude self
+    
+    renderOnlineUsers(users);
+  }, error => {
+    console.error('Error listening for user presence:', error);
+  });
 }
 
 function renderOnlineUsers(users) {
-if (!onlineUsersList) return;
-onlineUsersList.innerHTML = '';
+  if (!onlineUsersList) return;
+  onlineUsersList.innerHTML = '';
 
-if (users.length === 0) {
-onlineUsersList.innerHTML = '<div class="no-users-msg">No other users found.</div>';
-return;
-}
+  if (users.length === 0) {
+    onlineUsersList.innerHTML = '<div class="no-users-msg">No other users found.</div>';
+    return;
+  }
+  
   users.forEach(user => {
-const userEl = document.createElement('div');
-userEl.className = 'online-user-item';
-userEl.title = user.isOnline ? 'Online' : 'Offline';
+    const userEl = document.createElement('div');
+    userEl.className = 'online-user-item';
+    userEl.title = user.isOnline ? 'Online' : 'Offline';
     userEl.onclick = () => openChat(user);
-
-userEl.innerHTML = `
-  <div class="online-user-avatar">
-    <img src="${user.photoURL}" class="user-avatar" alt="${user.displayName}">
-    ${user.isOnline ? '<div class="online-indicator"></div>' : ''}
-  </div>
-  <span class="online-user-name">${user.displayName}</span>
-`;
-onlineUsersList.appendChild(userEl);
-});
+    
+    userEl.innerHTML = `
+      <div class="online-user-avatar">
+        <img src="${user.photoURL}" class="user-avatar" alt="${user.displayName}">
+        ${user.isOnline ? '<div class="online-indicator"></div>' : ''}
+      </div>
+      <span class="online-user-name">${user.displayName}</span>
+    `;
+    onlineUsersList.appendChild(userEl);
+  });
 }
 
 // --- Chat Functions ---
-
 function openChat(user) {
   currentChatUser = user;
-  chatUserAvatar.src = user.photoURL;
-  chatUserName.textContent = user.displayName;
-  chatUserStatus.textContent = user.isOnline ? 'Online' : 'Offline';
-  chatModal.classList.remove('hidden');
-  chatInput.value = '';
-  chatInput.focus();
+  if (chatUserAvatar) chatUserAvatar.src = user.photoURL;
+  if (chatUserName) chatUserName.textContent = user.displayName;
+  if (chatUserStatus) chatUserStatus.textContent = user.isOnline ? 'Online' : 'Offline';
+  
+  if (chatModal) chatModal.classList.remove('hidden');
+  if (chatInput) {
+    chatInput.value = '';
+    chatInput.focus();
+  }
 
+  // Clean up previous listeners
   if (messagesListener) messagesListener();
-
+  
   const chatId = getChatId(currentUser.uid, user.uid);
   const messagesRef = collection(db, 'chats', chatId, 'messages');
   const messagesQuery = query(messagesRef, orderBy('timestamp', 'asc'));
 
+  // Listen for messages with notification support
   messagesListener = onSnapshot(messagesQuery, (snapshot) => {
+    // Check for new messages and show notifications
     snapshot.docChanges().forEach(change => {
       if (change.type === 'added') {
         const msg = change.doc.data();
+        // Only show notification if message is from another user
         if (msg.senderId !== currentUser.uid) {
           showNotification(`New message from ${currentChatUser.displayName || 'a user'}`, 'success');
         }
       }
     });
+    
+    // Render all messages
     const messages = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
     renderMessages(messages);
+  }, error => {
+    console.error('Error fetching chat messages:', error);
   });
 }
-error => {
-console.error('Error fetching chat messages:', error);
-});
-}
+
 function closeChat() {
-chatModal.classList.add('hidden');
-if (messagesListener) messagesListener();
-currentChatUser = null;
-chatMessages.innerHTML = '';
+  if (chatModal) chatModal.classList.add('hidden');
+  if (messagesListener) messagesListener();
+  currentChatUser = null;
+  if (messagesList) messagesList.innerHTML = '';
 }
 
 function renderMessages(messages) {
-chatMessages.innerHTML = '';
-messages.forEach(msg => {
-const msgDiv = document.createElement('div');
-msgDiv.className = message ${msg.senderId === currentUser.uid ? 'sent' : 'received'};
-msgDiv.textContent = msg.text;
-chatMessages.appendChild(msgDiv);
-});
-chatMessages.scrollTop = chatMessages.scrollHeight;
+  if (!messagesList) return;
+  
+  messagesList.innerHTML = '';
+  messages.forEach(message => {
+    const messageEl = createMessageElement(message);
+    messagesList.appendChild(messageEl);
+  });
+  scrollToBottom();
 }
+
+function createMessageElement(message) {
+  const messageDiv = document.createElement('div');
+  messageDiv.className = `message ${message.senderId === currentUser.uid ? 'sent' : 'received'}`;
+  
+  const bubble = document.createElement('div');
+  bubble.className = 'message-bubble';
+  bubble.textContent = message.text;
+  
+  const timestamp = document.createElement('div');
+  timestamp.className = 'message-timestamp';
+  timestamp.textContent = formatMessageTime(message.timestamp);
+  
+  messageDiv.appendChild(bubble);
+  messageDiv.appendChild(timestamp);
+  
+  return messageDiv;
+}
+
+function formatMessageTime(timestamp) {
+  if (!timestamp?.toDate) return '';
+  const date = timestamp.toDate();
+  const now = new Date();
+  
+  if (now.toDateString() === date.toDateString()) {
+    return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  } else {
+    return date.toLocaleDateString() + ' ' + date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  }
+}
+
 async function sendMessage() {
-  const text = chatInput.value.trim();
-  if (!text) {
-    showNotification('Message cannot be empty', 'error');
-    return;
-  }
-  if (!currentChatUser) {
-    showNotification('Select a user to chat with first', 'error');
-    return;
-  }
-
+  const text = chatInput?.value?.trim();
+  if (!text || !currentChatUser) return;
+  
   const chatId = getChatId(currentUser.uid, currentChatUser.uid);
-
+  
   try {
-    // Ensure chat doc exists or create it (Firestore merge)
+    // Create chat document if it doesn't exist
     await setDoc(doc(db, 'chats', chatId), {
       participants: [currentUser.uid, currentChatUser.uid],
       lastMessage: text,
       lastMessageTime: serverTimestamp()
     }, { merge: true });
-
-    // Add the message to messages subcollection
+    
+    // Add message
     await addDoc(collection(db, `chats/${chatId}/messages`), {
       text: text,
       senderId: currentUser.uid,
       timestamp: serverTimestamp()
     });
-
-    chatInput.value = '';
+    
+    if (chatInput) chatInput.value = '';
     stopTyping();
   } catch (error) {
     console.error('Error sending message:', error);
-    const errorMessage = (error && error.message) ? error.message : 'Unknown error';
-    showNotification('Failed to send message: ' + errorMessage, 'error');
+    showNotification('Error sending message', 'error');
   }
 }
-// Typing indicator (basic debounced)
+
 function handleTyping() {
-clearTimeout(typingTimer);
-// TODO: Implement presence typing state (optional)
-typingTimer = setTimeout(stopTyping, 3000);
+  clearTimeout(typingTimer);
+  typingTimer = setTimeout(stopTyping, 3000);
 }
+
 function stopTyping() {
-clearTimeout(typingTimer);
+  clearTimeout(typingTimer);
 }
+
+function scrollToBottom() {
+  if (messagesList) {
+    setTimeout(() => {
+      messagesList.scrollTop = messagesList.scrollHeight;
+    }, 100);
+  }
+}
+
 // --- Authentication Functions ---
 function setupAuthEventListeners() {
   const loginForm = document.getElementById('loginForm');
@@ -283,28 +319,36 @@ function setupAuthEventListeners() {
   const logoutBtn = document.getElementById('logoutBtn');
 
   // Tab switching
-  loginTab.addEventListener('click', (e) => {
-    e.preventDefault();
-    switchAuthTab('login');
-  });
+  if (loginTab) {
+    loginTab.addEventListener('click', (e) => {
+      e.preventDefault();
+      switchAuthTab('login');
+    });
+  }
   
-  signupTab.addEventListener('click', (e) => {
-    e.preventDefault();
-    switchAuthTab('signup');
-  });
+  if (signupTab) {
+    signupTab.addEventListener('click', (e) => {
+      e.preventDefault();
+      switchAuthTab('signup');
+    });
+  }
   
   // Modal close
-  closeModal.addEventListener('click', (e) => {
-    e.preventDefault();
-    loginModal.classList.add('hidden');
-  });
+  if (closeModal) {
+    closeModal.addEventListener('click', (e) => {
+      e.preventDefault();
+      if (loginModal) loginModal.classList.add('hidden');
+    });
+  }
   
   // Click outside to close
-  loginModal.addEventListener('click', (e) => {
-    if (e.target === loginModal) {
-      loginModal.classList.add('hidden');
-    }
-  });
+  if (loginModal) {
+    loginModal.addEventListener('click', (e) => {
+      if (e.target === loginModal) {
+        loginModal.classList.add('hidden');
+      }
+    });
+  }
   
   // Logout
   if (logoutBtn) {
@@ -315,80 +359,105 @@ function setupAuthEventListeners() {
   }
 
   // Login form
-  loginForm.addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const formData = new FormData(e.target);
-    const email = formData.get('email');
-    const password = formData.get('password');
-    const messageEl = document.getElementById('loginMessage');
-    
-    if (!email || !password) {
-      messageEl.className = 'auth-message error';
-      messageEl.textContent = '❌ Please fill in all fields';
-      return;
-    }
-    
-    try {
-      messageEl.className = 'auth-message';
-      messageEl.textContent = 'Logging in...';
+  if (loginForm) {
+    loginForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const formData = new FormData(e.target);
+      const email = formData.get('email');
+      const password = formData.get('password');
+      const messageEl = document.getElementById('loginMessage');
       
-      const userCredential = await signInWithEmailAndPassword(auth, email, password);
-      if (userCredential.user.emailVerified) {
-        messageEl.className = 'auth-message success';
-        messageEl.textContent = '✅ Login successful!';
-        e.target.reset();
-      } else {
-        await signOut(auth);
-        messageEl.className = 'auth-message error';
-        messageEl.textContent = '❌ Please verify your email first. A new verification link has been sent.';
-        await sendEmailVerification(userCredential.user);
+      if (!email || !password) {
+        if (messageEl) {
+          messageEl.className = 'auth-message error';
+          messageEl.textContent = '❌ Please fill in all fields';
+        }
+        return;
       }
-    } catch (error) {
-      console.error('Login error:', error);
-      messageEl.className = 'auth-message error';
-      messageEl.textContent = `❌ ${error.message}`;
-    }
-  });
+      
+      try {
+        if (messageEl) {
+          messageEl.className = 'auth-message';
+          messageEl.textContent = 'Logging in...';
+        }
+        
+        const userCredential = await signInWithEmailAndPassword(auth, email, password);
+        if (userCredential.user.emailVerified) {
+          if (messageEl) {
+            messageEl.className = 'auth-message success';
+            messageEl.textContent = '✅ Login successful!';
+          }
+          e.target.reset();
+        } else {
+          await signOut(auth);
+          if (messageEl) {
+            messageEl.className = 'auth-message error';
+            messageEl.textContent = '❌ Please verify your email first. A new verification link has been sent.';
+          }
+          await sendEmailVerification(userCredential.user);
+        }
+      } catch (error) {
+        console.error('Login error:', error);
+        if (messageEl) {
+          messageEl.className = 'auth-message error';
+          messageEl.textContent = `❌ ${error.message}`;
+        }
+      }
+    });
+  }
 
   // Signup form
-  signupForm.addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const formData = new FormData(e.target);
-    const email = formData.get('email');
-    const password = formData.get('password');
-    const messageEl = document.getElementById('signupMessage');
-    
-    if (!email || !password) {
-      messageEl.className = 'auth-message error';
-      messageEl.textContent = '❌ Please fill in all fields';
-      return;
-    }
-    
-    if (password.length < 6) {
-      messageEl.className = 'auth-message error';
-      messageEl.textContent = '❌ Password must be at least 6 characters';
-      return;
-    }
-    
-    try {
-      messageEl.className = 'auth-message';
-      messageEl.textContent = 'Creating account...';
+  if (signupForm) {
+    signupForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const formData = new FormData(e.target);
+      const email = formData.get('email');
+      const password = formData.get('password');
+      const messageEl = document.getElementById('signupMessage');
       
-      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-      await sendEmailVerification(userCredential.user);
-      await signOut(auth);
-      messageEl.className = 'auth-message success';
-      messageEl.textContent = '✅ Account created! Please check your inbox to verify your email before logging in.';
-      e.target.reset();
+      if (!email || !password) {
+        if (messageEl) {
+          messageEl.className = 'auth-message error';
+          messageEl.textContent = '❌ Please fill in all fields';
+        }
+        return;
+      }
       
-      // Switch to login tab after successful signup
-      setTimeout(() => switchAuthTab('login'), 2000);
-    } catch (error) {
-      console.error('Signup error:', error);
-      messageEl.className = 'auth-message error';
-      messageEl.textContent = `❌ ${error.message}`;
-    }
-  });
+      if (password.length < 6) {
+        if (messageEl) {
+          messageEl.className = 'auth-message error';
+          messageEl.textContent = '❌ Password must be at least 6 characters';
+        }
+        return;
+      }
+      
+      try {
+        if (messageEl) {
+          messageEl.className = 'auth-message';
+          messageEl.textContent = 'Creating account...';
+        }
+        
+        const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+        await sendEmailVerification(userCredential.user);
+        await signOut(auth);
+        
+        if (messageEl) {
+          messageEl.className = 'auth-message success';
+          messageEl.textContent = '✅ Account created! Please check your inbox to verify your email before logging in.';
+        }
+        e.target.reset();
+        
+        // Switch to login tab after successful signup
+        setTimeout(() => switchAuthTab('login'), 2000);
+      } catch (error) {
+        console.error('Signup error:', error);
+        if (messageEl) {
+          messageEl.className = 'auth-message error';
+          messageEl.textContent = `❌ ${error.message}`;
+        }
+      }
+    });
+  }
 }
 
 function switchAuthTab(tab) {
@@ -398,20 +467,22 @@ function switchAuthTab(tab) {
   const signupTab = document.getElementById('signupTab');
   
   if (tab === 'login') {
-    loginForm.classList.remove('hidden');
-    signupForm.classList.add('hidden');
-    loginTab.classList.add('active');
-    signupTab.classList.remove('active');
+    if (loginForm) loginForm.classList.remove('hidden');
+    if (signupForm) signupForm.classList.add('hidden');
+    if (loginTab) loginTab.classList.add('active');
+    if (signupTab) signupTab.classList.remove('active');
   } else {
-    loginForm.classList.add('hidden');
-    signupForm.classList.remove('hidden');
-    loginTab.classList.remove('active');
-    signupTab.classList.add('active');
+    if (loginForm) loginForm.classList.add('hidden');
+    if (signupForm) signupForm.classList.remove('hidden');
+    if (loginTab) loginTab.classList.remove('active');
+    if (signupTab) signupTab.classList.add('active');
   }
   
   // Clear any existing messages
-  document.getElementById('loginMessage').textContent = '';
-  document.getElementById('signupMessage').textContent = '';
+  const loginMessage = document.getElementById('loginMessage');
+  const signupMessage = document.getElementById('signupMessage');
+  if (loginMessage) loginMessage.textContent = '';
+  if (signupMessage) signupMessage.textContent = '';
 }
 
 async function handleLogout() {
@@ -424,65 +495,6 @@ async function handleLogout() {
   } catch (error) {
     console.error('Logout error:', error);
     showNotification('Error logging out', 'error');
-  }
-}
-
-// --- User Presence Functions ---
-async function updateUserPresence(isOnline) {
-  if (!currentUser) return;
-  
-  try {
-    await setDoc(doc(db, 'users', currentUser.uid), {
-      uid: currentUser.uid,
-      displayName: currentUser.displayName || currentUser.email.split('@')[0],
-      email: currentUser.email,
-      photoURL: currentUser.photoURL || `https://i.pravatar.cc/40?u=${currentUser.uid}`,
-      isOnline: isOnline,
-      lastSeen: serverTimestamp()
-    }, { merge: true });
-  } catch (error) {
-    console.error('Error updating presence:', error);
-  }
-}
-
-function listenForOnlineUsers() {
-  if (onlineUsersListener) onlineUsersListener();
-  
-  const q = query(collection(db, 'users'), where('isOnline', '==', true));
-  onlineUsersListener = onSnapshot(q, (snapshot) => {
-    const onlineUsers = snapshot.docs
-      .map(doc => doc.data())
-      .filter(user => user.uid !== currentUser?.uid);
-    
-    renderOnlineUsers(onlineUsers);
-  }, (error) => {
-    console.error('Error listening for online users:', error);
-  });
-}
-
-function renderOnlineUsers(users) {
-  if (!onlineUsersList) return;
-  
-  onlineUsersList.innerHTML = '';
-  users.forEach(user => {
-    const userEl = document.createElement('div');
-    userEl.className = 'online-user-item';
-    userEl.onclick = () => openChat(user);
-    
-    userEl.innerHTML = `
-      <div class="online-user-avatar">
-        <img src="${user.photoURL}" class="user-avatar" alt="${user.displayName}">
-        <div class="online-indicator"></div>
-      </div>
-      <span class="online-user-name">${user.displayName}</span>
-    `;
-    
-    onlineUsersList.appendChild(userEl);
-  });
-  
-  // Show message if no online users
-  if (users.length === 0) {
-    onlineUsersList.innerHTML = '<div style="padding: 8px; color: var(--color-text-secondary); font-size: 14px;">No users online</div>';
   }
 }
 
@@ -506,11 +518,11 @@ function setupPostEventListeners() {
 }
 
 async function createPost() {
-  const content = postInput.value.trim();
+  const content = postInput?.value?.trim();
   if (!content) return;
   if (!currentUser) return showNotification('Please log in to post!', 'error');
 
-  postButton.disabled = true;
+  if (postButton) postButton.disabled = true;
   try {
     await addDoc(collection(db, "posts"), {
       type: 'original',
@@ -524,13 +536,13 @@ async function createPost() {
       commentList: [],
       shareCount: 0
     });
-    postInput.value = '';
+    if (postInput) postInput.value = '';
     showNotification('Post created successfully!');
   } catch (error) {
     console.error('Error creating post:', error);
     showNotification('Error creating post', 'error');
   } finally {
-    postButton.disabled = false;
+    if (postButton) postButton.disabled = false;
   }
 }
 
@@ -542,7 +554,6 @@ function listenForPosts() {
     displayPosts(posts);
   }, (error) => {
     console.error("Error fetching posts:", error);
-    // Show sample posts if Firebase fails
     displaySamplePosts();
   });
 }
@@ -580,6 +591,8 @@ function displaySamplePosts() {
 }
 
 function displayPosts(posts) {
+  if (!postsContainer) return;
+  
   postsContainer.innerHTML = '';
   if (posts.length === 0) {
     postsContainer.innerHTML = `
@@ -747,128 +760,6 @@ function setupChatEventListeners() {
   }
 }
 
-async function openChat(user) {
-  currentChatUser = user;
-  chatUserAvatar.src = user.photoURL;
-  chatUserName.textContent = user.displayName;
-  chatUserStatus.textContent = user.isOnline ? 'Online' : 'Offline';
-  
-  chatModal.classList.remove('hidden');
-  chatInput.focus();
-  
-  // Listen for messages
-  listenForMessages(user.uid);
-}
-
-function closeChat() {
-  chatModal.classList.add('hidden');
-  currentChatUser = null;
-  if (messagesListener) messagesListener();
-  messagesList.innerHTML = '';
-}
-
-function listenForMessages(otherUserId) {
-  if (messagesListener) messagesListener();
-  
-  const chatId = getChatId(currentUser.uid, otherUserId);
-  const q = query(
-    collection(db, `chats/${chatId}/messages`),
-    orderBy('timestamp', 'asc')
-  );
-  
-  messagesListener = onSnapshot(q, (snapshot) => {
-    const messages = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-    renderMessages(messages);
-  }, (error) => {
-    console.error('Error listening for messages:', error);
-  });
-}
-
-function renderMessages(messages) {
-  messagesList.innerHTML = '';
-  messages.forEach(message => {
-    const messageEl = createMessageElement(message);
-    messagesList.appendChild(messageEl);
-  });
-  scrollToBottom();
-}
-
-function createMessageElement(message) {
-  const messageDiv = document.createElement('div');
-  messageDiv.className = `message ${message.senderId === currentUser.uid ? 'sent' : 'received'}`;
-  
-  const bubble = document.createElement('div');
-  bubble.className = 'message-bubble';
-  bubble.textContent = message.text;
-  
-  const timestamp = document.createElement('div');
-  timestamp.className = 'message-timestamp';
-  timestamp.textContent = formatMessageTime(message.timestamp);
-  
-  messageDiv.appendChild(bubble);
-  messageDiv.appendChild(timestamp);
-  
-  return messageDiv;
-}
-
-function formatMessageTime(timestamp) {
-  if (!timestamp?.toDate) return '';
-  const date = timestamp.toDate();
-  const now = new Date();
-  
-  if (now.toDateString() === date.toDateString()) {
-    return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-  } else {
-    return date.toLocaleDateString() + ' ' + date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-  }
-}
-
-async function sendMessage() {
-  const text = chatInput.value.trim();
-  if (!text || !currentChatUser) return;
-  
-  const chatId = getChatId(currentUser.uid, currentChatUser.uid);
-  
-  try {
-    // Create chat document if it doesn't exist
-    await setDoc(doc(db, 'chats', chatId), {
-      participants: [currentUser.uid, currentChatUser.uid],
-      lastMessage: text,
-      lastMessageTime: serverTimestamp()
-    }, { merge: true });
-    
-    // Add message
-    await addDoc(collection(db, `chats/${chatId}/messages`), {
-      text: text,
-      senderId: currentUser.uid,
-      timestamp: serverTimestamp()
-    });
-    
-    chatInput.value = '';
-    stopTyping();
-  } catch (error) {
-    console.error('Error sending message:', error);
-    showNotification('Error sending message', 'error');
-  }
-}
-
-function handleTyping() {
-  clearTimeout(typingTimer);
-  typingTimer = setTimeout(stopTyping, 3000);
-}
-
-function stopTyping() {
-  clearTimeout(typingTimer);
-}
-
-function scrollToBottom() {
-  if (messagesList) {
-    setTimeout(() => {
-      messagesList.scrollTop = messagesList.scrollHeight;
-    }, 100);
-  }
-}
-
 // --- Global Functions for onclick handlers ---
 window.deletePost = async function(postId) {
   if (!confirm('Are you sure you want to delete this post?')) return;
@@ -941,6 +832,8 @@ window.addComment = async function(postId) {
   if (!currentUser) return showNotification('Please log in to comment!', 'error');
   
   const input = document.querySelector(`[data-post-id="${postId}"] .comment-input`);
+  if (!input) return;
+  
   const text = input.value.trim();
   if (!text) return;
 
@@ -981,7 +874,10 @@ window.deleteComment = async function(postId, commentId) {
   }
 };
 
-window.focusCommentInput = (postId) => document.querySelector(`[data-post-id="${postId}"] .comment-input`)?.focus();
+window.focusCommentInput = (postId) => {
+  const input = document.querySelector(`[data-post-id="${postId}"] .comment-input`);
+  if (input) input.focus();
+};
 
 window.commentKeydown = (e, postId) => {
   if (e.key === 'Enter' && !e.shiftKey) {
@@ -990,12 +886,14 @@ window.commentKeydown = (e, postId) => {
   }
 };
 
+window.openChat = openChat;
+
 // --- Auth State Observer ---
 onAuthStateChanged(auth, async (user) => {
   if (user && user.emailVerified) {
     currentUser = user;
-    appDiv.classList.remove('hidden');
-    loginModal.classList.add('hidden');
+    if (appDiv) appDiv.classList.remove('hidden');
+    if (loginModal) loginModal.classList.add('hidden');
     
     const avatarUrl = user.photoURL || `https://i.pravatar.cc/40?u=${user.uid}`;
     const userName = user.displayName || user.email.split('@')[0];
@@ -1019,8 +917,8 @@ onAuthStateChanged(auth, async (user) => {
     window.addEventListener('beforeunload', () => updateUserPresence(false));
   } else {
     currentUser = null;
-    appDiv.classList.add('hidden');
-    loginModal.classList.remove('hidden');
+    if (appDiv) appDiv.classList.add('hidden');
+    if (loginModal) loginModal.classList.remove('hidden');
     
     if (postsListenerUnsubscribe) postsListenerUnsubscribe();
     if (onlineUsersListener) onlineUsersListener();
