@@ -27,7 +27,7 @@
                         </div>
                     </div>
                     <button id="themeToggle" class="btn-icon" title="Toggle theme">🌙</button>
-                    <img id="userAvatar" src="https://via.placeholder.com/40" alt="User" class="user-avatar">
+                    <img id="userAvatar" src="https://via.placeholder.com/40" alt="User" class="user-avatar" onerror="this.src='data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' viewBox=\'0 0 100 100\'%3E%3Crect width=\'100\' height=\'100\' fill=\'%23ddd\'/%3E%3Ctext x=\'50\' y=\'55\' font-family=\'Arial\' font-size=\'40\' fill=\'%23888\' text-anchor=\'middle\' dominant-baseline=\'middle\'%3E👤%3C/text%3E%3C/svg%3E'">
                     <button id="logoutBtn" class="btn-secondary">Logout</button>
                 </div>
             </nav>
@@ -38,7 +38,7 @@
                 <div class="sidebar-card card">
                     <div style="padding: 16px; text-align: center;">
                         <div style="position: relative; display: inline-block;">
-                            <img id="sidebarAvatar" src="https://via.placeholder.com/64" alt="Profile" class="profile-avatar">
+                            <img id="sidebarAvatar" src="https://via.placeholder.com/64" alt="Profile" class="profile-avatar" onerror="this.src='data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' viewBox=\'0 0 100 100\'%3E%3Crect width=\'100\' height=\'100\' fill=\'%23ddd\'/%3E%3Ctext x=\'50\' y=\'55\' font-family=\'Arial\' font-size=\'40\' fill=\'%23888\' text-anchor=\'middle\' dominant-baseline=\'middle\'%3E👤%3C/text%3E%3C/svg%3E'">
                             <button id="changeAvatarBtn" class="btn-icon" style="position: absolute; bottom: -5px; right: -5px; width: 24px; height: 24px; font-size: 12px; background: var(--color-primary); color: white;">📷</button>
                         </div>
                         <h3 id="profileName">Loading...</h3>
@@ -56,7 +56,7 @@
         <main class="main-content">
             <section class="composer card">
                 <div class="composer-header">
-                    <img id="composerAvatar" src="https://via.placeholder.com/40" alt="You" class="user-avatar">
+                    <img id="composerAvatar" src="https://via.placeholder.com/40" alt="You" class="user-avatar" onerror="this.src='data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' viewBox=\'0 0 100 100\'%3E%3Crect width=\'100\' height=\'100\' fill=\'%23ddd\'/%3E%3Ctext x=\'50\' y=\'55\' font-family=\'Arial\' font-size=\'40\' fill=\'%23888\' text-anchor=\'middle\' dominant-baseline=\'middle\'%3E👤%3C/text%3E%3C/svg%3E'">
                     <textarea id="postInput" placeholder="What's on your mind?" rows="3"></textarea>
                 </div>
                 <div class="composer-actions">
@@ -142,7 +142,7 @@
         <div class="chat-container">
             <div class="chat-header" style="display: flex; align-items: center; justify-content: space-between; padding: 12px 16px; border-radius: var(--radius-lg) var(--radius-lg) 0 0;">
                 <div style="display: flex; align-items: center; gap: 12px;">
-                    <img id="chatUserAvatar" src="https://via.placeholder.com/32" alt="User" style="width: 32px; height: 32px; border-radius: 50%;">
+                    <img id="chatUserAvatar" src="https://via.placeholder.com/32" alt="User" style="width: 32px; height: 32px; border-radius: 50%;" onerror="this.src='data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' viewBox=\'0 0 100 100\'%3E%3Crect width=\'100\' height=\'100\' fill=\'%23ddd\'/%3E%3Ctext x=\'50\' y=\'55\' font-family=\'Arial\' font-size=\'40\' fill=\'%23888\' text-anchor=\'middle\' dominant-baseline=\'middle\'%3E👤%3C/text%3E%3C/svg%3E'">
                     <div>
                         <div id="chatUserName" style="font-weight: 600; font-size: 14px;">User Name</div>
                         <div id="chatUserStatus" style="font-size: 12px; opacity: 0.9;">Online</div>
@@ -188,3 +188,4 @@
     <script type="module" src="app.js"></script>
 </body>
 </html>
+
