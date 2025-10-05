@@ -110,29 +110,31 @@
                 <!-- Login Form -->
                 <form id="loginForm" class="auth-form">
                     <div style="margin-bottom: 16px;">
-                        <input type="email" id="loginEmail" placeholder="Email" required style="width: 100%; padding: 12px; border: 1px solid var(--color-border); border-radius: var(--radius-md);">
+                        <input type="email" id="loginEmail" placeholder="Email" required style="width: 100%; padding: 12px; border: 1px solid var(--color-border); border-radius: var(--radius-md); background: var(--color-background); color: var(--color-text);" autocomplete="email">
                     </div>
                     <div style="margin-bottom: 24px;">
-                        <input type="password" id="loginPassword" placeholder="Password" required style="width: 100%; padding: 12px; border: 1px solid var(--color-border); border-radius: var(--radius-md);">
+                        <input type="password" id="loginPassword" placeholder="Password" required style="width: 100%; padding: 12px; border: 1px solid var(--color-border); border-radius: var(--radius-md); background: var(--color-background); color: var(--color-text);" autocomplete="current-password">
                     </div>
                     <button type="submit" class="btn-primary" style="width: 100%; margin-bottom: 16px;">Sign In</button>
-                    <p>Don't have an account? <a href="#" id="showSignup" style="color: var(--color-primary);">Sign up</a></p>
+                    <p>Don't have an account? <a href="#" id="showSignup" style="color: var(--color-primary); cursor: pointer;">Sign up</a></p>
                 </form>
 
                 <!-- Signup Form -->
                 <form id="signupForm" class="auth-form hidden">
                     <div style="margin-bottom: 16px;">
-                        <input type="text" id="signupName" placeholder="Full Name" required style="width: 100%; padding: 12px; border: 1px solid var(--color-border); border-radius: var(--radius-md);">
+                        <input type="text" id="signupName" placeholder="Full Name" required style="width: 100%; padding: 12px; border: 1px solid var(--color-border); border-radius: var(--radius-md); background: var(--color-background); color: var(--color-text);" autocomplete="name">
                     </div>
                     <div style="margin-bottom: 16px;">
-                        <input type="email" id="signupEmail" placeholder="Email" required style="width: 100%; padding: 12px; border: 1px solid var(--color-border); border-radius: var(--radius-md);">
+                        <input type="email" id="signupEmail" placeholder="Email" required style="width: 100%; padding: 12px; border: 1px solid var(--color-border); border-radius: var(--radius-md); background: var(--color-background); color: var(--color-text);" autocomplete="email">
                     </div>
                     <div style="margin-bottom: 24px;">
-                        <input type="password" id="signupPassword" placeholder="Password (min 6 characters)" required minlength="6" style="width: 100%; padding: 12px; border: 1px solid var(--color-border); border-radius: var(--radius-md);">
+                        <input type="password" id="signupPassword" placeholder="Password (min 6 characters)" required minlength="6" style="width: 100%; padding: 12px; border: 1px solid var(--color-border); border-radius: var(--radius-md); background: var(--color-background); color: var(--color-text);" autocomplete="new-password">
                     </div>
                     <button type="submit" class="btn-primary" style="width: 100%; margin-bottom: 16px;">Create Account</button>
-                    <p>Already have an account? <a href="#" id="showLogin" style="color: var(--color-primary);">Sign in</a></p>
+                    <p>Already have an account? <a href="#" id="showLogin" style="color: var(--color-primary); cursor: pointer;">Sign in</a></p>
                 </form>
+
+                <div id="authError" class="auth-error hidden" style="margin-top: 16px; padding: 12px; background: #fee; border: 1px solid #fcc; border-radius: var(--radius-md); color: #c33;"></div>
             </div>
         </div>
     </div>
@@ -184,6 +186,12 @@
 
     <!-- Toast Notification -->
     <div id="notification" class="toast-notification"></div>
+
+    <!-- Loading indicator -->
+    <div id="loadingIndicator" class="loading-indicator hidden">
+        <div class="loading-spinner"></div>
+        <div>Loading...</div>
+    </div>
 
     <script type="module" src="app.js"></script>
 </body>
