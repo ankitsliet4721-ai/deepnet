@@ -611,7 +611,7 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     // --- Initialize App ---
-    const initializeApp = () => {
+    const startApp = () => {
         applyTheme(localStorage.getItem('theme') || 'light');
         setupEventListeners();
         makeChatDraggable();
@@ -620,5 +620,6 @@ document.addEventListener('DOMContentLoaded', () => {
         window.addEventListener('beforeunload', () => { if(currentUser) updateUserPresence(false); });
     };
 
-    initializeApp();
+    startApp();
 });
+
