@@ -1,131 +1,141 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-color-scheme="light">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>DeepNet Social - AI Research Community</title>
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
   <!-- Login Modal -->
-  <div id="login-modal" class="login-modal">
-    <div class="login-content">
-      <div class="login-header">
-        <div class="login-logo">DeepNet</div>
-        <p class="login-subtitle">Connect with the AI Research Community</p>
+  <div id="loginModal" class="login-modal hidden">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2>🧠 DeepNet Social</h2>
+        <p>Connect with AI researchers worldwide</p>
       </div>
-      <div id="auth-message" class="auth-message"></div>
-      <form id="login-form">
-        <input type="email" id="email" placeholder="Email" class="auth-input" required>
-        <input type="password" id="password" placeholder="Password" class="auth-input" required>
-        <button type="submit" class="auth-button primary">Log In</button>
+      <div class="auth-tabs">
+        <button id="loginTab" class="active">Login</button>
+        <button id="signupTab">Sign Up</button>
+      </div>
+      <form id="loginForm" class="auth-form">
+        <div class="input-group">
+          <input type="email" name="email" placeholder="Email address" required>
+          <input type="password" name="password" placeholder="Password" required>
+        </div>
+        <button type="submit" class="btn-primary" style="width:100%">Log In</button>
+        <div id="loginMessage" class="auth-message"></div>
       </form>
-      <form id="signup-form">
-        <p class="form-divider"><span>Don't have an account?</span></p>
-        <button type="submit" class="auth-button secondary">Create New Account</button>
+      <form id="signupForm" class="auth-form hidden">
+        <div class="input-group">
+          <input type="email" name="email" placeholder="Email address" required>
+          <input type="password" name="password" placeholder="Create password" minlength="6" required>
+        </div>
+        <button type="submit" class="btn-primary" style="width:100%">Sign Up</button>
+        <div id="signupMessage" class="auth-message"></div>
       </form>
     </div>
   </div>
 
-  <!-- Main App Interface -->
-  <div id="app" class="hidden">
-    <!-- Header -->
-    <header class="header">
-      <div class="header-left">
-        <div class="logo">D</div>
-        <div class="search-bar">
-          <input type="text" placeholder="Search DeepNet">
-        </div>
-      </div>
+  <!-- Main Application -->
+  <div id="app" class="app-container hidden">
+    <header>
+      <a href="#" class="logo">
+        <span class="logo-icon">🧠</span> DeepNet Social
+      </a>
       <nav class="header-nav">
-        <!-- Navigation icons would go here -->
+        <a href="#" class="nav-link active">Home</a>
+        <a href="#" class="nav-link">Research</a>
+        <a href="#" class="nav-link">Messages</a>
       </nav>
-      <div class="header-right">
-        <div id="status-indicator" class="status-indicator offline">
-          <span id="status-text">Connecting...</span>
+      <div class="user-menu">
+        <button id="themeToggle" class="btn-icon" title="Toggle Theme">☀️</button>
+        <div class="notification-wrapper">
+          <button id="notificationsToggle" class="btn-icon" title="Notifications">
+            🔔
+            <span id="notificationCount" class="notification-badge hidden"></span>
+          </button>
+          <div id="notificationsPanel" class="notifications-panel hidden">
+            <div class="notifications-header"><h3>Notifications</h3></div>
+            <div id="notificationsList" class="notifications-list"></div>
+          </div>
         </div>
-        <img id="user-avatar" class="avatar" src="https://i.pravatar.cc/40" alt="User Avatar">
-        <button id="logout-button" class="logout-button">Logout</button>
+        <img id="userAvatar" class="user-avatar" alt="User Avatar">
+        <button id="logoutBtn" class="btn-primary">Logout</button>
       </div>
     </header>
 
-    <!-- Main Content -->
-    <div class="main-container">
-      <!-- Left Sidebar -->
-      <aside class="left-sidebar">
-        <div class="sidebar-item">
-          <img id="sidebar-avatar" class="avatar" src="https://i.pravatar.cc/40" alt="User Avatar">
-          <span id="profile-name">User Name</span>
-        </div>
-        <!-- Other sidebar items would go here -->
-      </aside>
+    <aside class="left-sidebar">
+      <div class="sidebar-section profile-card">
+        <img id="sidebarAvatar" class="profile-avatar" alt="Profile Avatar">
+        <h3 id="profileName">User Name</h3>
+        <p id="status" class="status">Connecting...</p>
+      </div>
+      <div class="sidebar-section">
+        <h4>👥 Online Users</h4>
+        <div id="onlineUsersList" class="online-users-list"></div>
+      </div>
+    </aside>
 
-      <!-- Main Feed -->
-      <main class="main-feed">
-        <div class="post-composer">
-          <img id="composer-avatar" class="avatar" src="https://i.pravatar.cc/40" alt="User Avatar">
-          <form id="post-form">
-            <textarea id="post-content" placeholder="Share your latest research..." required></textarea>
-            <div class="post-composer-actions">
-                <button type="button" id="ai-generate-post-btn" class="ai-button">✨ Generate with AI</button>
-                <button type="submit">Post</button>
-            </div>
-          </form>
+    <main class="main-content">
+      <div class="composer">
+        <div class="composer-header">
+          <img id="composerAvatar" class="user-avatar" alt="Your Avatar">
+          <textarea id="postInput" placeholder="Share your research insights..."></textarea>
         </div>
-        <div id="posts-container" class="posts-container">
-          <!-- Posts will be dynamically inserted here -->
+        <div class="composer-actions">
+          <div>
+            <button class="option-btn">📄 Paper</button>
+            <button class="option-btn">💻 Code</button>
+          </div>
+          <button id="postButton" class="btn-primary">Post</button>
         </div>
-      </main>
+      </div>
+      <div id="postsContainer" class="posts-container"></div>
+    </main>
 
-      <!-- Right Sidebar (Online Users) -->
-      <aside class="right-sidebar">
-        <h3 class="sidebar-title">Community</h3>
-        <ul id="online-users-list">
-          <!-- User list will be dynamically inserted here -->
-        </ul>
-      </aside>
+    <aside class="right-sidebar">
+      <div class="sidebar-card">
+        <h3>Trending in AI</h3>
+      </div>
+      <div class="sidebar-card">
+        <h3>Suggested Connections</h3>
+      </div>
+    </aside>
+  </div>
+
+  <!-- Chat Modal -->
+  <div id="chatModal" class="chat-modal hidden">
+    <div class="chat-container">
+      <div class="chat-header">
+        <div class="chat-user-info">
+          <img id="chatUserAvatar" class="chat-user-avatar" alt="Chat User">
+          <div>
+            <h3 id="chatUserName">User Name</h3>
+            <p id="chatUserStatus" class="chat-user-status">Offline</p>
+          </div>
+        </div>
+        <button id="closeChatModal" class="chat-close">&times;</button>
+      </div>
+      <div id="messagesContainer" class="messages-container">
+        <div id="messagesList"></div>
+        <div id="typingIndicator" class="typing-indicator hidden">
+          <span id="typingUserName">User</span>&nbsp;is typing
+          <div class="typing-dots">
+            <div class="typing-dot"></div>
+            <div class="typing-dot"></div>
+            <div class="typing-dot"></div>
+          </div>
+        </div>
+      </div>
+      <form id="chatInputForm" class="chat-input-form">
+        <input id="chatInput" class="chat-input" type="text" placeholder="Type a message..." autocomplete="off">
+        <button class="chat-send" type="submit">Send</button>
+      </form>
     </div>
   </div>
   
-  <!-- Chat Widget -->
-  <div id="chat-widget" class="chat-widget hidden">
-      <div class="chat-header">
-          <div class="chat-recipient-info">
-              <img id="chat-recipient-avatar" src="https://i.pravatar.cc/30" class="avatar">
-              <span id="chat-recipient-name"></span>
-          </div>
-          <div id="chat-recipient-status" class="status-dot offline"></div>
-          <button id="close-chat" class="close-chat-btn">&times;</button>
-      </div>
-      <div id="messages-list" class="messages-list">
-          <!-- Messages will be loaded here -->
-      </div>
-      <div id="typing-indicator" class="typing-indicator hidden">
-          <span></span><span></span><span></span>
-      </div>
-      <div id="ai-reply-suggestions" class="ai-reply-suggestions"></div>
-      <div class="chat-composer">
-          <input type="text" id="message-input" placeholder="Type a message...">
-          <button id="ai-suggest-reply-btn" class="ai-button small">✨</button>
-          <button id="send-message-btn">Send</button>
-      </div>
-  </div>
-
-  <!-- AI Post Generator Modal -->
-  <div id="ai-post-modal" class="ai-modal hidden">
-      <div class="ai-modal-content">
-          <h3>✨ AI Post Generator</h3>
-          <p>Enter a topic, question, or instruction, and let AI draft a post for you.</p>
-          <textarea id="ai-post-prompt" placeholder="e.g., 'Explain the transformer architecture' or 'Write a short post about the potential of generative models in drug discovery'"></textarea>
-          <div class="ai-modal-actions">
-              <button id="ai-post-modal-cancel" class="auth-button secondary">Cancel</button>
-              <button id="ai-post-modal-generate" class="auth-button primary">Generate</button>
-          </div>
-      </div>
-  </div>
-
-  <!-- Notification Element -->
   <div id="notification" class="notification"></div>
 
   <script type="module" src="app.js"></script>
