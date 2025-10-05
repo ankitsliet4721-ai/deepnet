@@ -66,7 +66,6 @@ document.addEventListener('DOMContentLoaded', () => {
     notificationsList: document.getElementById('notificationsList'),
   };
 
-  // --- Utility Functions ---
   const showToast = (message, type = 'success') => { DOMElements.notification.textContent = message; DOMElements.notification.className = `notification ${type}`; DOMElements.notification.classList.add('show'); setTimeout(() => DOMElements.notification.classList.remove('show'), 3000); };
   const formatTime = (ts) => { if (!ts?.toDate) return 'a moment ago'; const d = ts.toDate(), now = new Date(), diff = now - d; if (diff < 60000) return 'Just now'; if (diff < 3600000) return `${Math.floor(diff/60000)}m ago`; if (diff < 86400000) return `${Math.floor(diff/3600000)}h ago`; return d.toLocaleDateString('en-US',{day:'numeric',month:'short'}); };
   const getChatId = (uid1, uid2) => [uid1, uid2].sort().join('_');
@@ -76,9 +75,63 @@ document.addEventListener('DOMContentLoaded', () => {
   // --- Notification System ---
   const createNotification = async (recipientId, type, contentSnippet = null, postId = null) => { if (recipientId === currentUser.uid) return; try { await addDoc(collection(db, 'notifications'), { recipientId, senderId: currentUser.uid, senderName: currentUser.displayName, type, contentSnippet, postId, read: false, createdAt: serverTimestamp() }); } catch (e) { console.error("Notification Error:", e); } };
   const listenForNotifications = () => { if (notificationsListener) notificationsListener(); const q = query(collection(db, 'notifications'), where('recipientId', '==', currentUser.uid), orderBy('createdAt', 'desc'), limit(10)); notificationsListener = onSnapshot(q, s => { const notifs = s.docs.map(d => ({ id: d.id, ...d.data() })); const unread = notifs.filter(n => !n.read).length; DOMElements.notificationCount.textContent = unread; DOMElements.notificationCount.classList.toggle('hidden', unread === 0); renderNotifications(notifs); }); };
-  const renderNotifications = (notifs) => { const list = DOMElements.notificationsList; list.innerHTML = ''; if (notifs.length === 0) { list.innerHTML = '<div class="no-notifications">No notifications yet.</div>'; return; } notifs.forEach(n => { const item = document.createElement('div'); item.className = `notification-item ${!n.read ? 'unread' : ''}`; let icon='🔔', text=''; switch(n.type){ case 'like': icon='👍'; text=`<strong>${n.senderName}</strong> liked your post.`; break; case 'comment': icon='💬'; text=`<strong>${n.senderName}</strong> commented: "${n.contentSnippet}"`; break; case 'share': icon='↗️'; text=`<strong>${n.senderName}</strong> shared your post.`; break; case 'message': icon='✉️'; text=`<strong>${n.senderName}</strong> sent you a message.`; break; default: text=`New notification.`; break; } item.innerHTML = `<div class="notification-item-icon">${icon}</div><div class="notification-item-content"><p>${text}</p><div class="notification-item-time">${formatTime(n.createdAt)}</div></div>`; list.appendChild(item); }); };
+  
+  // MODIFIED: Added data attributes for interactivity
+  const renderNotifications = (notifs) => {
+    const list = DOMElements.notificationsList;
+    list.innerHTML = '';
+    if (notifs.length === 0) {
+      list.innerHTML = '<div class="no-notifications">No notifications yet.</div>';
+      return;
+    }
+    notifs.forEach(n => {
+      const item = document.createElement('div');
+      item.className = `notification-item ${!n.read ? 'unread' : ''}`;
+      item.dataset.type = n.type;
+      item.dataset.senderId = n.senderId;
+      if (n.postId) item.dataset.postId = n.postId;
+
+      let icon='🔔', text='';
+      switch(n.type){
+        case 'like': icon='👍'; text=`<strong>${n.senderName}</strong> liked your post.`; break;
+        case 'comment': icon='💬'; text=`<strong>${n.senderName}</strong> commented: "${n.contentSnippet}"`; break;
+        case 'share': icon='↗️'; text=`<strong>${n.senderName}</strong> shared your post.`; break;
+        case 'message': icon='✉️'; text=`<strong>${n.senderName}</strong> sent you a message.`; break;
+        default: text=`New notification.`; break;
+      }
+      item.innerHTML = `<div class="notification-item-icon">${icon}</div><div class="notification-item-content"><p>${text}</p><div class="notification-item-time">${formatTime(n.createdAt)}</div></div>`;
+      list.appendChild(item);
+    });
+  };
+
   const markNotificationsAsRead = async () => { const q = query(collection(db, 'notifications'), where('recipientId', '==', currentUser.uid), where('read', '==', false)); const s = await getDocs(q); s.forEach(d => updateDoc(d.ref, { read: true })); };
   
+  // NEW: Handles clicks on notification items
+  const handleNotificationClick = async (event) => {
+    const target = event.target.closest('.notification-item');
+    if (!target) return;
+
+    const { type, senderId, postId } = target.dataset;
+
+    // Handle message notifications
+    if (type === 'message' && senderId) {
+      const userRef = doc(db, 'users', senderId);
+      const userSnap = await getDoc(userRef);
+      if (userSnap.exists()) {
+        openChat(userSnap.data());
+        DOMElements.notificationsPanel.classList.add('hidden'); // Close panel after click
+      } else {
+        showToast('Could not find user to open chat.', 'error');
+      }
+    }
+
+    // Future enhancement: Handle post notifications
+    if ((type === 'like' || type === 'comment' || type === 'share') && postId) {
+      showToast('Navigating to posts from notifications will be added soon!', 'info');
+      DOMElements.notificationsPanel.classList.add('hidden');
+    }
+  };
+
   const makeDraggable = (element, handle) => { let p1=0,p2=0,p3=0,p4=0; handle.onmousedown = e => { e.preventDefault(); p3=e.clientX; p4=e.clientY; document.onmouseup = ()=>{document.onmouseup=null; document.onmousemove=null; document.body.classList.remove('dragging-no-select');}; document.onmousemove = e => { e.preventDefault(); p1=p3-e.clientX; p2=p4-e.clientY; p3=e.clientX; p4=e.clientY; let top=element.offsetTop-p2, left=element.offsetLeft-p1; const max_X=window.innerWidth-element.offsetWidth, max_Y=window.innerHeight-element.offsetHeight; top=Math.max(0,Math.min(top,max_Y)); left=Math.max(0,Math.min(left,max_X)); element.style.top=top+"px"; element.style.left=left+"px"; element.style.bottom='auto'; element.style.right='auto'; }; document.body.classList.add('dragging-no-select'); }; };
 
   const updateUserPresence = async (isOnline) => { if (!currentUser) return; await setDoc(doc(db,'users',currentUser.uid),{uid:currentUser.uid,displayName:currentUser.displayName,email:currentUser.email,photoURL:currentUser.photoURL,presence:{state:isOnline?'online':'offline',last_changed:serverTimestamp()}},{merge:true}); };
@@ -87,7 +140,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const displayPosts = (posts) => { DOMElements.postsContainer.innerHTML = ''; if(posts.length === 0) { DOMElements.postsContainer.innerHTML = `<div class="post" style="text-align:center;">No posts yet.</div>`; return; } posts.forEach(p => DOMElements.postsContainer.appendChild(createPostElement(p))); };
   const renderComments = (postEl, comments = []) => { const listEl = postEl.querySelector('.comment-list'); listEl.innerHTML = ''; comments.forEach(c => { const item = document.createElement('div'); item.className = 'comment-item'; item.innerHTML = `<img src="${c.avatar}" class="comment-avatar"><div><div class="comment-body"><strong>${c.author}</strong> ${c.text}</div><div class="comment-meta">${formatTime(c.createdAt)}${c.userId === currentUser?.uid ? `<button class="delete-comment" onclick="deleteComment('${postEl.dataset.postId}', '${c.id}')">Delete</button>` : ''}</div></div>`; listEl.appendChild(item); }); };
     
-  const createPostElement = (post) => { const el = document.createElement('div'); if (post.type === 'share') { el.className = 'post shared-post'; const op = post.originalPost, opId = post.originalPostId; el.innerHTML = `<div class="share-header">🧠 <strong>${post.sharerName}</strong> shared this</div><div class="post-content-wrapper"><div class="post-header"><div class="post-author-info"><img src="${op.authorAvatar}" class="user-avatar"><div><div class="post-author">${op.authorName}</div><div class="post-time">${formatTime(op.createdAt)}</div></div></div></div><div class="post-content">${(op.content||'').replace(/\n/g,'<br>')}</div><div class="post-stats"><span>${op.likes||0} Likes</span><span>${op.commentList?.length||0} Comments</span><span>${op.shareCount||0} Shares</span></div><div class="post-actions"><button class="post-action ${op.likedBy?.includes(currentUser?.uid)?'liked':''}" onclick="toggleLike('${opId}')">👍 Like</button><button class="post-action" onclick="focusCommentInput('${opId}')">💬 Comment</button><button class="post-action" onclick="sharePost('${opId}')">↗️ Share</button></div></div>`; } else { el.className = 'post'; el.dataset.postId = post.id; el.innerHTML = `<div class="post-header"><div class="post-author-info"><img src="${post.authorAvatar}" class="user-avatar"><div><div class="post-author">${post.authorName}</div><div class="post-time">${formatTime(post.createdAt)}</div></div></div>${post.authorId===currentUser?.uid?`<button class="post-menu" onclick="deletePost('${post.id}')">✕</button>`:''}</div><div class="post-content">${post.content.replace(/\n/g,'<br>')}</div><div class="post-stats"><span>${post.likes||0} Likes</span><span>${post.commentList?.length||0} Comments</span><span>${post.shareCount||0} Shares</span></div><div class="post-actions"><button class="post-action ${post.likedBy?.includes(currentUser?.uid)?'liked':''}" onclick="toggleLike('${post.id}')">👍 Like</button><button class="post-action" onclick="focusCommentInput('${post.id}')">💬 Comment</button><button class="post-action" onclick="sharePost('${post.id}')">↗️ Share</button></div><div class="comments"><div class="comment-list"></div><form class="comment-form" onsubmit="addComment(event, '${post.id}')"><input class="comment-input" type="text" placeholder="Add a comment..."><button type="submit" class="comment-btn">Post</button></form></div>`; renderComments(el, post.commentList); } return el; };
+  window.createPostElement = (post) => { const el = document.createElement('div'); if (post.type === 'share') { el.className = 'post shared-post'; const op = post.originalPost, opId = post.originalPostId; el.innerHTML = `<div class="share-header">🧠 <strong>${post.sharerName}</strong> shared this</div><div class="post-content-wrapper"><div class="post-header"><div class="post-author-info"><img src="${op.authorAvatar}" class="user-avatar"><div><div class="post-author">${op.authorName}</div><div class="post-time">${formatTime(op.createdAt)}</div></div></div></div><div class="post-content">${(op.content||'').replace(/\n/g,'<br>')}</div><div class="post-stats"><span>${op.likes||0} Likes</span><span>${op.commentList?.length||0} Comments</span><span>${op.shareCount||0} Shares</span></div><div class="post-actions"><button class="post-action ${op.likedBy?.includes(currentUser?.uid)?'liked':''}" onclick="toggleLike('${opId}')">👍 Like</button><button class="post-action" onclick="focusCommentInput('${opId}')">💬 Comment</button><button class="post-action" onclick="sharePost('${opId}')">↗️ Share</button></div></div>`; } else { el.className = 'post'; el.dataset.postId = post.id; el.innerHTML = `<div class="post-header"><div class="post-author-info"><img src="${post.authorAvatar}" class="user-avatar"><div><div class="post-author">${post.authorName}</div><div class="post-time">${formatTime(post.createdAt)}</div></div></div>${post.authorId===currentUser?.uid?`<button class="post-menu" onclick="deletePost('${post.id}')">✕</button>`:''}</div><div class="post-content">${post.content.replace(/\n/g,'<br>')}</div><div class="post-stats"><span>${post.likes||0} Likes</span><span>${post.commentList?.length||0} Comments</span><span>${post.shareCount||0} Shares</span></div><div class="post-actions"><button class="post-action ${post.likedBy?.includes(currentUser?.uid)?'liked':''}" onclick="toggleLike('${post.id}')">👍 Like</button><button class="post-action" onclick="focusCommentInput('${post.id}')">💬 Comment</button><button class="post-action" onclick="sharePost('${post.id}')">↗️ Share</button></div><div class="comments"><div class="comment-list"></div><form class="comment-form" onsubmit="addComment(event, '${post.id}')"><input class="comment-input" type="text" placeholder="Add a comment..."><button type="submit" class="comment-btn">Post</button></form></div>`; renderComments(el, post.commentList); } return el; };
 
   const openChat = (user) => { currentChatUser = user; DOMElements.chatUserAvatar.src = user.photoURL; DOMElements.chatUserName.textContent = user.displayName; DOMElements.chatUserStatus.textContent = user.presence?.state === 'online' ? 'Online' : 'Offline'; DOMElements.chatModal.classList.remove('hidden'); DOMElements.chatInput.focus(); const chatId = getChatId(currentUser.uid, user.uid); if (chatListener) chatListener(); const q = query(collection(db,'chats',chatId,'messages'),orderBy('timestamp','asc')); chatListener=onSnapshot(q,s=>renderMessages(s.docs.map(d=>d.data()))); if (typingListener) typingListener(); typingListener=onSnapshot(doc(db,'chats',chatId),s=>{if(!s.exists()||!currentChatUser)return;const t=s.data().typing||{};DOMElements.typingIndicator.classList.toggle('hidden',!t[currentChatUser.uid]);}); };
   const closeChat = () => { if (chatListener) chatListener(); if (typingListener) typingListener(); currentChatUser = null; DOMElements.chatModal.classList.add('hidden'); };
@@ -118,7 +171,6 @@ document.addEventListener('DOMContentLoaded', () => {
       
       await updateUserPresence(true);
       
-      // Start all data listeners
       if(postsListener)postsListener();
       const qp=query(collection(db,'posts'),orderBy('createdAt','desc'));
       postsListener=onSnapshot(qp,s=>displayPosts(s.docs.map(d=>({id:d.id,...d.data()}))));
@@ -146,6 +198,10 @@ document.addEventListener('DOMContentLoaded', () => {
   applyTheme(localStorage.getItem('theme') || 'light');
   DOMElements.themeToggle.addEventListener('click', toggleTheme);
   DOMElements.notificationsToggle.addEventListener('click', () => { DOMElements.notificationsPanel.classList.toggle('hidden'); if (!DOMElements.notificationsPanel.classList.contains('hidden')) markNotificationsAsRead(); });
+  
+  // ADDED: Event listener for notification clicks
+  DOMElements.notificationsList.addEventListener('click', handleNotificationClick);
+
   DOMElements.postButton.addEventListener('click', window.createPost);
   DOMElements.chatInputForm.addEventListener('submit', (e) => { e.preventDefault(); sendMessage(); });
   DOMElements.chatInput.addEventListener('input', () => { clearTimeout(typingTimer); updateTypingStatus(true); typingTimer = setTimeout(() => updateTypingStatus(false), 2000); });
