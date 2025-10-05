@@ -48,6 +48,8 @@ const DOMElements = {
   postButton: document.getElementById('postButton'),
   onlineUsersList: document.getElementById('onlineUsersList'),
   chatModal: document.getElementById('chatModal'),
+  chatContainer: document.querySelector('.chat-container'),
+  chatHeader: document.querySelector('.chat-header'),
   chatUserAvatar: document.getElementById('chatUserAvatar'),
   chatUserName: document.getElementById('chatUserName'),
   chatUserStatus: document.getElementById('chatUserStatus'),
@@ -85,6 +87,56 @@ const formatTime = (timestamp) => {
 };
 
 const getChatId = (userId1, userId2) => [userId1, userId2].sort().join('_');
+
+// --- Draggable Chatbox Logic ---
+const makeDraggable = (element, handle) => {
+    let pos1 = 0, pos2 = 0, pos3 = 0, pos4 = 0;
+
+    handle.onmousedown = dragMouseDown;
+
+    function dragMouseDown(e) {
+        e = e || window.event;
+        e.preventDefault();
+        pos3 = e.clientX;
+        pos4 = e.clientY;
+        document.onmouseup = closeDragElement;
+        document.onmousemove = elementDrag;
+        document.body.classList.add('dragging-no-select');
+    }
+
+    function elementDrag(e) {
+        e = e || window.event;
+        e.preventDefault();
+        pos1 = pos3 - e.clientX;
+        pos2 = pos4 - e.clientY;
+        pos3 = e.clientX;
+        pos4 = e.clientY;
+        
+        let newTop = element.offsetTop - pos2;
+        let newLeft = element.offsetLeft - pos1;
+
+        // Boundary checks
+        const maxX = window.innerWidth - element.offsetWidth;
+        const maxY = window.innerHeight - element.offsetHeight;
+
+        if (newLeft < 0) newLeft = 0;
+        if (newTop < 0) newTop = 0;
+        if (newLeft > maxX) newLeft = maxX;
+        if (newTop > maxY) newTop = maxY;
+
+        element.style.top = newTop + "px";
+        element.style.left = newLeft + "px";
+        element.style.bottom = 'auto'; // Override initial positioning
+        element.style.right = 'auto'; // Override initial positioning
+    }
+
+    function closeDragElement() {
+        document.onmouseup = null;
+        document.onmousemove = null;
+        document.body.classList.remove('dragging-no-select');
+    }
+}
+
 
 // --- User Presence ---
 const updateUserPresence = async (isOnline) => {
@@ -155,80 +207,72 @@ const displayPosts = (posts) => {
 };
 
 const createPostElement = (post) => {
-  const postEl = document.createElement('div');
-  
-  // Distinguish between a share and an original post
-  if (post.type === 'share') {
-      postEl.className = 'post shared-post';
-      const originalPost = post.originalPost;
-      const originalPostId = post.originalPostId;
-      const isLiked = originalPost.likedBy?.includes(currentUser?.uid);
-
-      postEl.innerHTML = `
-          <div class="share-header">
-              🧠 <strong>${post.sharerName}</strong> shared this
-          </div>
-          <div class="post-content-wrapper">
-              <div class="post-header">
-                  <div class="post-author-info">
-                      <img src="${originalPost.authorAvatar}" class="user-avatar" alt="${originalPost.authorName}">
-                      <div>
-                          <div class="post-author">${originalPost.authorName}</div>
-                          <div class="post-time">${formatTime(originalPost.createdAt)}</div>
-                      </div>
-                  </div>
-              </div>
-              <div class="post-content">${(originalPost.content || '').replace(/\n/g, '<br>')}</div>
-              <div class="post-stats">
-                  <span>${originalPost.likes || 0} Likes</span>
-                  <span>${originalPost.commentList?.length || 0} Comments</span>
-                  <span>${originalPost.shareCount || 0} Shares</span>
-              </div>
-              <div class="post-actions">
-                  <button class="post-action ${isLiked ? 'liked' : ''}" onclick="toggleLike('${originalPostId}')">👍 Like</button>
-                  <button class="post-action" onclick="focusCommentInput('${originalPostId}')">💬 Comment</button>
-                  <button class="post-action" onclick="sharePost('${originalPostId}')">↗️ Share</button>
-              </div>
-          </div>
-      `;
-  } else {
-      postEl.className = 'post';
-      postEl.dataset.postId = post.id;
-      const isLiked = post.likedBy?.includes(currentUser?.uid);
-
-      postEl.innerHTML = `
-          <div class="post-header">
-              <div class="post-author-info">
-                  <img src="${post.authorAvatar}" class="user-avatar" alt="${post.authorName}">
-                  <div>
-                      <div class="post-author">${post.authorName}</div>
-                      <div class="post-time">${formatTime(post.createdAt)}</div>
-                  </div>
-              </div>
-              ${post.authorId === currentUser?.uid ? `<button class="post-menu" onclick="deletePost('${post.id}')">✕</button>` : ''}
-          </div>
-          <div class="post-content">${post.content.replace(/\n/g, '<br>')}</div>
-          <div class="post-stats">
-              <span>${post.likes || 0} Likes</span>
-              <span>${post.commentList?.length || 0} Comments</span>
-              <span>${post.shareCount || 0} Shares</span>
-          </div>
-          <div class="post-actions">
-              <button class="post-action ${isLiked ? 'liked' : ''}" onclick="toggleLike('${post.id}')">👍 Like</button>
-              <button class="post-action" onclick="focusCommentInput('${post.id}')">💬 Comment</button>
-              <button class="post-action" onclick="sharePost('${post.id}')">↗️ Share</button>
-          </div>
-          <div class="comments">
-              <div class="comment-list"></div>
-              <form class="comment-form" onsubmit="addComment(event, '${post.id}')">
-                  <input class="comment-input" type="text" placeholder="Add a comment...">
-                  <button type="submit" class="comment-btn">Post</button>
-              </form>
-          </div>
-      `;
-      renderComments(postEl, post.commentList);
-  }
-  return postEl;
+    const postEl = document.createElement('div');
+    if (post.type === 'share') {
+        postEl.className = 'post shared-post';
+        const originalPost = post.originalPost;
+        const originalPostId = post.originalPostId;
+        const isLiked = originalPost.likedBy?.includes(currentUser?.uid);
+        postEl.innerHTML = `
+            <div class="share-header">🧠 <strong>${post.sharerName}</strong> shared this</div>
+            <div class="post-content-wrapper">
+                <div class="post-header">
+                    <div class="post-author-info">
+                        <img src="${originalPost.authorAvatar}" class="user-avatar" alt="${originalPost.authorName}">
+                        <div>
+                            <div class="post-author">${originalPost.authorName}</div>
+                            <div class="post-time">${formatTime(originalPost.createdAt)}</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="post-content">${(originalPost.content || '').replace(/\n/g, '<br>')}</div>
+                <div class="post-stats">
+                    <span>${originalPost.likes || 0} Likes</span>
+                    <span>${originalPost.commentList?.length || 0} Comments</span>
+                    <span>${originalPost.shareCount || 0} Shares</span>
+                </div>
+                <div class="post-actions">
+                    <button class="post-action ${isLiked ? 'liked' : ''}" onclick="toggleLike('${originalPostId}')">👍 Like</button>
+                    <button class="post-action" onclick="focusCommentInput('${originalPostId}')">💬 Comment</button>
+                    <button class="post-action" onclick="sharePost('${originalPostId}')">↗️ Share</button>
+                </div>
+            </div>`;
+    } else {
+        postEl.className = 'post';
+        postEl.dataset.postId = post.id;
+        const isLiked = post.likedBy?.includes(currentUser?.uid);
+        postEl.innerHTML = `
+            <div class="post-header">
+                <div class="post-author-info">
+                    <img src="${post.authorAvatar}" class="user-avatar" alt="${post.authorName}">
+                    <div>
+                        <div class="post-author">${post.authorName}</div>
+                        <div class="post-time">${formatTime(post.createdAt)}</div>
+                    </div>
+                </div>
+                ${post.authorId === currentUser?.uid ? `<button class="post-menu" onclick="deletePost('${post.id}')">✕</button>` : ''}
+            </div>
+            <div class="post-content">${post.content.replace(/\n/g, '<br>')}</div>
+            <div class="post-stats">
+                <span>${post.likes || 0} Likes</span>
+                <span>${post.commentList?.length || 0} Comments</span>
+                <span>${post.shareCount || 0} Shares</span>
+            </div>
+            <div class="post-actions">
+                <button class="post-action ${isLiked ? 'liked' : ''}" onclick="toggleLike('${post.id}')">👍 Like</button>
+                <button class="post-action" onclick="focusCommentInput('${post.id}')">💬 Comment</button>
+                <button class="post-action" onclick="sharePost('${post.id}')">↗️ Share</button>
+            </div>
+            <div class="comments">
+                <div class="comment-list"></div>
+                <form class="comment-form" onsubmit="addComment(event, '${post.id}')">
+                    <input class="comment-input" type="text" placeholder="Add a comment...">
+                    <button type="submit" class="comment-btn">Post</button>
+                </form>
+            </div>`;
+        renderComments(postEl, post.commentList);
+    }
+    return postEl;
 };
 
 const renderComments = (postEl, comments = []) => {
@@ -256,9 +300,7 @@ const listenForOnlineUsers = () => {
   if (onlineUsersListener) onlineUsersListener();
   const q = query(collection(db, 'users'));
   onlineUsersListener = onSnapshot(q, (snapshot) => {
-    const users = snapshot.docs
-      .map(doc => doc.data())
-      .filter(user => user.uid !== currentUser?.uid);
+    const users = snapshot.docs.map(doc => doc.data()).filter(user => user.uid !== currentUser?.uid);
     renderOnlineUsers(users);
   });
 };
@@ -319,28 +361,16 @@ const closeChat = () => {
 const sendMessage = async () => {
   const text = DOMElements.chatInput.value.trim();
   if (!text || !currentChatUser) return;
-
   DOMElements.chatInput.value = '';
   const chatId = getChatId(currentUser.uid, currentChatUser.uid);
-  
-  await addDoc(collection(db, 'chats', chatId, 'messages'), {
-    text,
-    senderId: currentUser.uid,
-    timestamp: serverTimestamp()
-  });
-  
-  await setDoc(doc(db, 'chats', chatId), {
-    participants: [currentUser.uid, currentChatUser.uid],
-    lastMessage: text,
-  }, { merge: true });
+  await addDoc(collection(db, 'chats', chatId, 'messages'), { text, senderId: currentUser.uid, timestamp: serverTimestamp() });
+  await setDoc(doc(db, 'chats', chatId), { participants: [currentUser.uid, currentChatUser.uid], lastMessage: text }, { merge: true });
 };
 
 const updateTypingStatus = async (isTyping) => {
   if (!currentChatUser) return;
   const chatId = getChatId(currentUser.uid, currentChatUser.uid);
-  await setDoc(doc(db, 'chats', chatId), {
-    typing: { [currentUser.uid]: isTyping }
-  }, { merge: true });
+  await setDoc(doc(db, 'chats', chatId), { typing: { [currentUser.uid]: isTyping } }, { merge: true });
 };
 
 // --- Post & Comment Logic ---
@@ -348,109 +378,32 @@ const createPost = async () => {
   const content = DOMElements.postInput.value.trim();
   if (!content) return;
   DOMElements.postButton.disabled = true;
-  await addDoc(collection(db, 'posts'), {
-    type: 'original',
-    authorId: currentUser.uid,
-    authorName: currentUser.displayName,
-    authorAvatar: currentUser.photoURL,
-    content,
-    createdAt: serverTimestamp(),
-    likes: 0,
-    likedBy: [],
-    commentList: [],
-    shareCount: 0
-  });
+  await addDoc(collection(db, 'posts'), { type: 'original', authorId: currentUser.uid, authorName: currentUser.displayName, authorAvatar: currentUser.photoURL, content, createdAt: serverTimestamp(), likes: 0, likedBy: [], commentList: [], shareCount: 0 });
   DOMElements.postInput.value = '';
   DOMElements.postButton.disabled = false;
 };
 
 // --- Global Functions for inline event handlers ---
-window.deletePost = async (postId) => {
-  if (confirm('Are you sure you want to delete this post?')) {
-    await deleteDoc(doc(db, "posts", postId));
-    showNotification('Post deleted.', 'success');
-  }
-};
-
-window.toggleLike = async (postId) => {
-  const postRef = doc(db, 'posts', postId);
-  const postSnap = await getDoc(postRef);
-  if (!postSnap.exists()) return;
-  const likedBy = postSnap.data().likedBy || [];
-  const updateData = {
-    likedBy: likedBy.includes(currentUser.uid) ? arrayRemove(currentUser.uid) : arrayUnion(currentUser.uid),
-    likes: increment(likedBy.includes(currentUser.uid) ? -1 : 1)
-  };
-  await updateDoc(postRef, updateData);
-};
-
+window.deletePost = async (postId) => { if (confirm('Are you sure?')) { await deleteDoc(doc(db, "posts", postId)); showNotification('Post deleted.', 'success'); } };
+window.toggleLike = async (postId) => { const postRef = doc(db, 'posts', postId); const postSnap = await getDoc(postRef); if (!postSnap.exists()) return; const likedBy = postSnap.data().likedBy || []; await updateDoc(postRef, { likedBy: likedBy.includes(currentUser.uid) ? arrayRemove(currentUser.uid) : arrayUnion(currentUser.uid), likes: increment(likedBy.includes(currentUser.uid) ? -1 : 1) }); };
 window.sharePost = async (originalPostId) => {
-  if (!currentUser) return showNotification('Please log in to share.', 'error');
-  
-  const originalPostRef = doc(db, 'posts', originalPostId);
-  const originalPostSnap = await getDoc(originalPostRef);
-
-  if (!originalPostSnap.exists()) {
-    return showNotification('This post no longer exists.', 'error');
-  }
-
-  const originalPostData = originalPostSnap.data();
-
-  await addDoc(collection(db, 'posts'), {
-    type: 'share',
-    sharerId: currentUser.uid,
-    sharerName: currentUser.displayName,
-    sharerAvatar: currentUser.photoURL,
-    createdAt: serverTimestamp(),
-    originalPostId: originalPostId,
-    originalPost: originalPostData // Denormalize by embedding original post data
-  });
-  
-  // Atomically increment the share count on the original post
-  await updateDoc(originalPostRef, {
-    shareCount: increment(1)
-  });
-
-  showNotification('Post shared successfully!', 'success');
-};
-
-window.focusCommentInput = (postId) => document.querySelector(`[data-post-id="${postId}"] .comment-input`).focus();
-
-window.addComment = async (event, postId) => {
-  event.preventDefault();
-  const input = event.target.querySelector('.comment-input');
-  const text = input.value.trim();
-  if (!text) return;
-
-  const comment = {
-    id: doc(collection(db, 'tmp')).id, // Firestore-like random ID
-    userId: currentUser.uid,
-    author: currentUser.displayName,
-    avatar: currentUser.photoURL,
-    text,
-    createdAt: new Date()
-  };
-  await updateDoc(doc(db, 'posts', postId), { commentList: arrayUnion(comment) });
-  input.value = '';
-};
-
-window.deleteComment = async (postId, commentId) => {
-  const postRef = doc(db, 'posts', postId);
+  if (!currentUser) return showNotification('Please log in.', 'error');
+  const postRef = doc(db, 'posts', originalPostId);
   const postSnap = await getDoc(postRef);
-  if (!postSnap.exists()) return;
-  const postData = postSnap.data();
-  const commentToDelete = postData.commentList.find(c => c.id === commentId);
-  if (commentToDelete) {
-    await updateDoc(postRef, { commentList: arrayRemove(commentToDelete) });
-  }
+  if (!postSnap.exists()) return showNotification('Post not found.', 'error');
+  await addDoc(collection(db, 'posts'), { type: 'share', sharerId: currentUser.uid, sharerName: currentUser.displayName, sharerAvatar: currentUser.photoURL, createdAt: serverTimestamp(), originalPostId: originalPostId, originalPost: postSnap.data() });
+  await updateDoc(postRef, { shareCount: increment(1) });
+  showNotification('Post shared!', 'success');
 };
+window.focusCommentInput = (postId) => document.querySelector(`[data-post-id="${postId}"] .comment-input`).focus();
+window.addComment = async (event, postId) => { event.preventDefault(); const input = event.target.querySelector('.comment-input'); const text = input.value.trim(); if (!text) return; const comment = { id: doc(collection(db, 'tmp')).id, userId: currentUser.uid, author: currentUser.displayName, avatar: currentUser.photoURL, text, createdAt: new Date() }; await updateDoc(doc(db, 'posts', postId), { commentList: arrayUnion(comment) }); input.value = ''; };
+window.deleteComment = async (postId, commentId) => { const postRef = doc(db, 'posts', postId); const postSnap = await getDoc(postRef); if (!postSnap.exists()) return; const commentToDelete = postSnap.data().commentList.find(c => c.id === commentId); if (commentToDelete) { await updateDoc(postRef, { commentList: arrayRemove(commentToDelete) }); } };
 
 // --- Authentication ---
 const setupAuthEventListeners = () => {
   document.getElementById('loginTab').addEventListener('click', () => switchAuthTab('login'));
   document.getElementById('signupTab').addEventListener('click', () => switchAuthTab('signup'));
   document.getElementById('logoutBtn').addEventListener('click', handleLogout);
-
   document.getElementById('loginForm').addEventListener('submit', handleLogin);
   document.getElementById('signupForm').addEventListener('submit', handleSignup);
 };
@@ -464,56 +417,22 @@ const switchAuthTab = (tab) => {
   document.getElementById('signupTab').classList.toggle('active', tab !== 'login');
 };
 
-const handleLogin = async (e) => {
-  e.preventDefault();
-  const { email, password } = Object.fromEntries(new FormData(e.target));
-  const msgEl = document.getElementById('loginMessage');
-  try {
-    const cred = await signInWithEmailAndPassword(auth, email, password);
-    if (!cred.user.emailVerified) {
-      await signOut(auth);
-      msgEl.textContent = 'Please verify your email first.';
-    }
-  } catch (error) { msgEl.textContent = error.message; }
-};
-
-const handleSignup = async (e) => {
-  e.preventDefault();
-  const { email, password } = Object.fromEntries(new FormData(e.target));
-  const msgEl = document.getElementById('signupMessage');
-  try {
-    const cred = await createUserWithEmailAndPassword(auth, email, password);
-    await sendEmailVerification(cred.user);
-    await signOut(auth);
-    msgEl.textContent = 'Account created! Please verify your email.';
-  } catch (error) { msgEl.textContent = error.message; }
-};
-
-const handleLogout = async () => {
-  await updateUserPresence(false);
-  await signOut(auth);
-};
+const handleLogin = async (e) => { e.preventDefault(); const { email, password } = Object.fromEntries(new FormData(e.target)); const msgEl = document.getElementById('loginMessage'); try { const cred = await signInWithEmailAndPassword(auth, email, password); if (!cred.user.emailVerified) { await signOut(auth); msgEl.textContent = 'Please verify your email.'; } } catch (error) { msgEl.textContent = error.message; } };
+const handleSignup = async (e) => { e.preventDefault(); const { email, password } = Object.fromEntries(new FormData(e.target)); const msgEl = document.getElementById('signupMessage'); try { const cred = await createUserWithEmailAndPassword(auth, email, password); await sendEmailVerification(cred.user); await signOut(auth); msgEl.textContent = 'Account created! Please verify your email.'; } catch (error) { msgEl.textContent = error.message; } };
+const handleLogout = async () => { await updateUserPresence(false); await signOut(auth); };
 
 // --- App Initialization & Auth State ---
 onAuthStateChanged(auth, async (user) => {
   if (user && user.emailVerified) {
-    currentUser = {
-      uid: user.uid,
-      displayName: user.displayName || user.email.split('@')[0],
-      email: user.email,
-      photoURL: user.photoURL || `https://i.pravatar.cc/40?u=${user.uid}`
-    };
+    currentUser = { uid: user.uid, displayName: user.displayName || user.email.split('@')[0], email: user.email, photoURL: user.photoURL || `https://i.pravatar.cc/40?u=${user.uid}` };
     DOMElements.app.classList.remove('hidden');
     DOMElements.loginModal.classList.add('hidden');
-    
     [DOMElements.userAvatar, DOMElements.sidebarAvatar, DOMElements.composerAvatar].forEach(el => el.src = currentUser.photoURL);
     DOMElements.profileName.textContent = currentUser.displayName;
-    
     await updateUserPresence(true);
     listenForPosts();
     listenForOnlineUsers();
     updateStatus('Online', 'online');
-    
   } else {
     currentUser = null;
     DOMElements.app.classList.add('hidden');
@@ -527,16 +446,12 @@ document.addEventListener('DOMContentLoaded', () => {
   setupAuthEventListeners();
   DOMElements.postButton.addEventListener('click', createPost);
   DOMElements.chatInputForm.addEventListener('submit', (e) => { e.preventDefault(); sendMessage(); });
-  DOMElements.chatInput.addEventListener('input', () => {
-    clearTimeout(typingTimer);
-    updateTypingStatus(true);
-    typingTimer = setTimeout(() => updateTypingStatus(false), 2000);
-  });
-  DOMElements.chatModal.addEventListener('click', (e) => { if(e.target === DOMElements.chatModal) closeChat(); });
+  DOMElements.chatInput.addEventListener('input', () => { clearTimeout(typingTimer); updateTypingStatus(true); typingTimer = setTimeout(() => updateTypingStatus(false), 2000); });
   document.getElementById('closeChatModal').addEventListener('click', closeChat);
+  
+  // Initialize draggable functionality
+  makeDraggable(DOMElements.chatContainer, DOMElements.chatHeader);
 });
 
-window.addEventListener('beforeunload', () => {
-  if (auth.currentUser) { updateUserPresence(false); }
-});
+window.addEventListener('beforeunload', () => { if (auth.currentUser) { updateUserPresence(false); } });
 
