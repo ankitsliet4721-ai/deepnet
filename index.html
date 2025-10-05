@@ -50,7 +50,17 @@
         <a href="#" class="nav-link">Messages</a>
       </nav>
       <div class="user-menu">
-        <button class="btn-icon" title="Notifications">🔔</button>
+        <button id="themeToggle" class="btn-icon" title="Toggle Theme">☀️</button>
+        <div class="notification-wrapper">
+          <button id="notificationsToggle" class="btn-icon" title="Notifications">
+            🔔
+            <span id="notificationCount" class="notification-badge hidden"></span>
+          </button>
+          <div id="notificationsPanel" class="notifications-panel hidden">
+            <div class="notifications-header"><h3>Notifications</h3></div>
+            <div id="notificationsList" class="notifications-list"></div>
+          </div>
+        </div>
         <img id="userAvatar" class="user-avatar" alt="User Avatar">
         <button id="logoutBtn" class="btn-primary">Logout</button>
       </div>
