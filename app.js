@@ -620,6 +620,3 @@ document.addEventListener('DOMContentLoaded', () => {
         window.addEventListener('beforeunload', () => { if(currentUser) updateUserPresence(false); });
     };
 
-    startApp();
-});
-
