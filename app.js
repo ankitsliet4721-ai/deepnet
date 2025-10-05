@@ -57,6 +57,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let currentChatUser = null;
     let typingTimer = null;
     let isDragging = false;
+    const genericAvatar = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' fill='%23ddd'/%3E%3Ctext x='50' y='55' font-family='Arial' font-size='40' fill='%23888' text-anchor='middle' dominant-baseline='middle'%3E👤%3C/text%3E%3C/svg%3E";
 
     // --- DOM Element Cache (Initialized safely after DOM is loaded) ---
     const DOMElements = {
@@ -189,7 +190,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 imageUrl: imageUrl || '',
                 senderId: currentUser.uid,
                 senderName: currentUser.displayName,
-                senderAvatar: currentUser.photoURL || 'https://via.placeholder.com/40',
+                senderAvatar: currentUser.photoURL || genericAvatar,
                 timestamp: serverTimestamp()
             };
             await addDoc(collection(db, 'chats', chatId, 'messages'), messageData);
@@ -262,7 +263,7 @@ document.addEventListener('DOMContentLoaded', () => {
         currentChatUser = user;
         DOMElements.chatModal.classList.remove('hidden');
         
-        DOMElements.chatUserAvatar.src = user.photoURL || 'https://via.placeholder.com/32';
+        DOMElements.chatUserAvatar.src = user.photoURL || genericAvatar;
         DOMElements.chatUserName.textContent = user.displayName;
         DOMElements.chatUserStatus.textContent = user.isOnline ? 'Online' : 'Offline';
 
@@ -285,7 +286,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const isSent = message.senderId === currentUser.uid;
             return `
                 <div class="message ${isSent ? 'sent' : 'received'}">
-                    <img class="message-avatar" src="${message.senderAvatar}" alt="${message.senderName}">
+                    <img class="message-avatar" src="${message.senderAvatar}" alt="${message.senderName}" onerror="this.src='${genericAvatar}'">
                     <div class="message-bubble">
                         ${message.imageUrl ? `<img src="${message.imageUrl}" class="message-image" alt="Shared image" onclick="window.open('${message.imageUrl}', '_blank')">` : ''}
                         ${message.text ? `<div>${message.text}</div>` : ''}
@@ -305,7 +306,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 recipientId,
                 senderId: currentUser.uid,
                 senderName: currentUser.displayName,
-                senderAvatar: currentUser.photoURL || 'https://via.placeholder.com/40',
+                senderAvatar: currentUser.photoURL || genericAvatar,
                 type, contentSnippet, postId,
                 read: false,
                 createdAt: serverTimestamp()
@@ -376,7 +377,7 @@ document.addEventListener('DOMContentLoaded', () => {
             userEl.className = 'online-user-item';
             userEl.innerHTML = `
                 <div class="online-user-avatar">
-                    <img src="${user.photoURL || 'https://via.placeholder.com/32'}" alt="${user.displayName}">
+                    <img src="${user.photoURL || genericAvatar}" alt="${user.displayName}" onerror="this.src='${genericAvatar}'">
                     <div class="online-indicator"></div>
                 </div>
                 <div style="flex: 1; min-width: 0;">
@@ -398,7 +399,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 text,
                 author: currentUser.displayName,
                 authorId: currentUser.uid,
-                authorAvatar: currentUser.photoURL || 'https://via.placeholder.com/40',
+                authorAvatar: currentUser.photoURL || genericAvatar,
                 likes: [], comments: [],
                 createdAt: serverTimestamp()
             });
@@ -418,12 +419,16 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const renderPosts = (posts) => {
         DOMElements.postsContainer.innerHTML = posts.map(post => {
-            const isLiked = post.likes?.includes(currentUser.uid);
+            // FIX: Ensure post.likes is treated as an array to prevent .includes error
+            const isLiked = (post.likes || []).includes(currentUser.uid);
+            const likeCount = (post.likes || []).length;
+            const commentCount = (post.comments || []).length;
+
             return `
             <article class="post card">
                 <div class="post-header">
                     <div class="post-author-info">
-                        <img src="${post.authorAvatar}" alt="${post.author}" class="user-avatar">
+                        <img src="${post.authorAvatar}" alt="${post.author}" class="user-avatar" onerror="this.src='${genericAvatar}'">
                         <div>
                             <div style="font-weight: 600;">${post.author}</div>
                             <div style="font-size: 12px; color: var(--color-text-secondary);">${formatTime(post.createdAt)}</div>
@@ -432,8 +437,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 </div>
                 <div style="margin: 12px 0;">${post.text}</div>
                 <div class="post-stats">
-                    <span>${post.likes?.length || 0} likes</span>
-                    <span>${post.comments?.length || 0} comments</span>
+                    <span>${likeCount} likes</span>
+                    <span>${commentCount} comments</span>
                 </div>
                 <div class="post-actions">
                     <button class="post-action ${isLiked ? 'liked' : ''}" onclick="toggleLike('${post.id}')">${isLiked ? '❤️' : '🤍'} Like</button>
@@ -446,14 +451,14 @@ document.addEventListener('DOMContentLoaded', () => {
                         <button type="submit" class="btn-secondary">Post</button>
                     </form>
                     <div class="comments-list">
-                        ${post.comments?.sort((a,b) => b.createdAt - a.createdAt).map(c => `
+                        ${(post.comments || []).sort((a,b) => b.createdAt - a.createdAt).map(c => `
                             <div class="comment-item">
-                                <img src="${c.authorAvatar}" alt="${c.author}" class="comment-avatar">
+                                <img src="${c.authorAvatar}" alt="${c.author}" class="comment-avatar" onerror="this.src='${genericAvatar}'">
                                 <div class="comment-body">
                                     <strong>${c.author}</strong> ${c.text}
                                     <div style="font-size: 10px; color: var(--color-text-secondary); margin-top: 4px;">${formatTime(c.createdAt)}</div>
                                 </div>
-                            </div>`).join('') || ''}
+                            </div>`).join('')}
                     </div>
                 </div>
             </article>`;
@@ -473,7 +478,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const postSnap = await getDoc(postRef);
         if(!postSnap.exists()) return;
         const post = postSnap.data();
-        const isLiked = post.likes?.includes(currentUser.uid);
+        const isLiked = (post.likes || []).includes(currentUser.uid);
         await updateDoc(postRef, { likes: isLiked ? arrayRemove(currentUser.uid) : arrayUnion(currentUser.uid) });
         if (!isLiked && post.authorId !== currentUser.uid) {
             await createNotification(post.authorId, 'like', null, postId);
@@ -486,7 +491,7 @@ document.addEventListener('DOMContentLoaded', () => {
             text: text.trim(),
             author: currentUser.displayName,
             authorId: currentUser.uid,
-            authorAvatar: currentUser.photoURL || 'https://via.placeholder.com/32',
+            authorAvatar: currentUser.photoURL || genericAvatar,
             createdAt: serverTimestamp()
         };
         const postRef = doc(db, 'posts', postId);
@@ -504,7 +509,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (user) {
                 currentUser = user;
                 DOMElements.loginModal.classList.add('hidden');
-                const avatarUrl = user.photoURL || 'https://via.placeholder.com/40';
+                const avatarUrl = user.photoURL || genericAvatar;
                 [DOMElements.userAvatar, DOMElements.sidebarAvatar, DOMElements.composerAvatar].forEach(el => el.src = avatarUrl);
                 DOMElements.profileName.textContent = user.displayName || 'Anonymous';
                 DOMElements.status.textContent = 'Online';
@@ -619,4 +624,7 @@ document.addEventListener('DOMContentLoaded', () => {
         document.addEventListener('visibilitychange', () => { if(currentUser) updateUserPresence(!document.hidden); });
         window.addEventListener('beforeunload', () => { if(currentUser) updateUserPresence(false); });
     };
+
+    startApp();
+});
 
