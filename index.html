@@ -15,7 +15,7 @@
   <div id="loginModal" class="modal-backdrop hidden">
     <div class="modal-content">
       <div class="modal-header">
-        <h2>🧠 DeepNet Social</h2>
+        <h2>Welcome to DeepNet Social</h2>
         <p>Connect with the future of AI</p>
       </div>
       <div class="auth-tabs">
@@ -23,124 +23,87 @@
         <button id="signupTab">Sign Up</button>
       </div>
       <form id="loginForm" class="auth-form">
-        <div class="input-group">
-          <input type="email" name="email" placeholder="Email address" required>
-          <input type="password" name="password" placeholder="Password" required>
-        </div>
+        <div class="input-group"><input type="email" name="email" placeholder="Email address" required></div>
+        <div class="input-group"><input type="password" name="password" placeholder="Password" required></div>
         <button type="submit" class="btn btn-primary" style="width:100%">Log In</button>
         <div id="loginMessage" class="auth-message"></div>
       </form>
       <form id="signupForm" class="auth-form hidden">
-        <div class="input-group">
-          <input type="email" name="email" placeholder="Email address" required>
-          <input type="password" name="password" placeholder="Create password" minlength="6" required>
-        </div>
+        <div class="input-group"><input type="email" name="email" placeholder="Email address" required></div>
+        <div class="input-group"><input type="password" name="password" placeholder="Create password" minlength="6" required></div>
         <button type="submit" class="btn btn-primary" style="width:100%">Sign Up</button>
         <div id="signupMessage" class="auth-message"></div>
       </form>
     </div>
   </div>
 
+  <!-- Profile Picture Upload Modal -->
+  <div id="profilePicModal" class="modal-backdrop hidden">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2>Update Profile Picture</h2>
+        </div>
+        <div class="profile-pic-preview-area">
+            <label for="profilePicInput" class="profile-pic-wrapper-large">
+                <img id="profilePicPreview" src="https://i.pravatar.cc/150" alt="Preview">
+                <div class="profile-pic-overlay"><span>Choose Photo</span></div>
+            </label>
+        </div>
+        <div class="modal-actions">
+            <button id="profilePicCancel" class="btn btn-secondary">Cancel</button>
+            <button id="profilePicSave" class="btn btn-primary">Save Picture</button>
+        </div>
+        <div id="uploadSpinner" class="spinner-overlay hidden">
+            <div class="spinner"></div>
+        </div>
+    </div>
+  </div>
+  <input type="file" id="profilePicInput" accept="image/*" class="hidden">
+
   <!-- Main Application -->
   <div id="app" class="app-container hidden">
     <header>
-      <a href="#" class="logo">
-        <span class="logo-icon">🧠</span>
-        <span>DeepNet Social</span>
-      </a>
-      <div class="user-menu">
-        <button id="themeToggle" class="btn-icon" title="Toggle Theme">🌙</button>
-        <div class="notification-wrapper">
-          <button id="notificationsToggle" class="btn-icon" title="Notifications">
-            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg>
-            <span id="notificationCount" class="notification-badge hidden"></span>
-          </button>
-          <div id="notificationsPanel" class="notifications-panel hidden">
-            <div class="notifications-header"><h3>Notifications</h3></div>
-            <div id="notificationsList" class="notifications-list"></div>
-          </div>
+        <div class="header-left">
+            <a href="#" class="logo">
+                <svg viewBox="0 0 36 36" fill="url(#logoGradient)" height="40" width="40"><defs><linearGradient x1="50%" x2="50%" y1="97.0782153%" y2="0%" id="logoGradient"><stop offset="0%" stop-color="#0062E0"></stop><stop offset="100%" stop-color="#19AFFF"></stop></linearGradient></defs><path d="M15 35.8c-7.2 0-13-5.8-13-13s5.8-13 13-13c3.1 0 5.9 1.1 8.1 2.9L20 16.6c-1.2-.9-2.8-1.5-4.5-1.5-4.5 0-8.2 3.7-8.2 8.2s3.7 8.2 8.2 8.2c2.8 0 5.2-1.4 6.7-3.5l3.1 1.9c-2.3 3.3-6.2 5.5-10.3 5.5zM35 9.6c0-4.6-4.2-8.2-9.4-8.2-4.1 0-7.6 2.5-8.9 6.1l3.1 1.9c.8-2.2 3-3.8 5.8-3.8 3.3 0 6 2.4 6 5.4s-2.7 5.4-6 5.4c-1.6 0-3.1-.5-4.3-1.4l-3.1 1.9c1.7 1.9 4.3 3.1 7.4 3.1 5.2 0 9.4-3.6 9.4-8.2z"></path></svg>
+            </a>
+            <div class="search-bar"><input type="text" placeholder="Search DeepNet"></div>
         </div>
-        <img id="userAvatar" class="user-avatar" alt="User Avatar">
-        <button id="logoutBtn" class="btn btn-secondary">Logout</button>
-      </div>
+        <nav class="header-center"></nav>
+        <div class="header-right">
+            <button id="themeToggle" class="btn-icon" title="Toggle Theme">🌙</button>
+            <div class="notification-wrapper">
+                <button id="notificationsToggle" class="btn-icon" title="Notifications"></button>
+                <div id="notificationsPanel" class="notifications-panel hidden"></div>
+            </div>
+            <img id="userAvatar" class="user-avatar" alt="User Avatar">
+        </div>
     </header>
 
     <aside class="left-sidebar">
-      <div class="sidebar-section profile-card">
-        <div id="profilePicUploadTrigger" class="profile-pic-wrapper">
-            <img id="sidebarAvatar" class="profile-avatar" alt="Profile Avatar">
-            <div class="profile-pic-overlay"><span>Change</span></div>
-        </div>
-        <h3 id="profileName">User Name</h3>
-        <p id="status" class="status">Connecting...</p>
+      <div id="profilePicUploadTrigger" class="sidebar-link profile-trigger"> 
+          <img id="sidebarAvatar" class="user-avatar" alt="Profile Avatar"> 
+          <span id="profileName">User Name</span> 
       </div>
-      <div class="sidebar-section">
-        <h4>👥 Users</h4>
-        <div id="onlineUsersList" class="online-users-list"></div>
-      </div>
+      <nav class="sidebar-nav"></nav>
+      <button id="logoutBtn" class="btn btn-secondary" style="width: 100%; margin-top: 16px;">Logout</button>
     </aside>
 
     <main class="main-content">
-      <div class="composer card">
-        <div class="composer-header">
-          <img id="composerAvatar" class="user-avatar" alt="Your Avatar">
-          <textarea id="postInput" placeholder="Share your research insights..."></textarea>
-        </div>
-        <div class="composer-actions">
-          <div class="composer-options">
-            <button class="btn-icon"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg></button>
-            <button class="btn-icon"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 18 22 12 16 6"></polyline><polyline points="8 6 2 12 8 18"></polyline></svg></button>
-          </div>
-          <button id="postButton" class="btn btn-primary">Post</button>
-        </div>
-      </div>
+      <div class="composer card"></div>
       <div id="postsContainer" class="posts-container"></div>
     </main>
 
     <aside class="right-sidebar">
-      <div class="sidebar-card">
-        <h3>Trends for you</h3>
+      <div class="sidebar-section">
+        <h4>Contacts</h4>
+        <div id="onlineUsersList" class="online-users-list"></div>
       </div>
+       <p id="status" class="status">Connecting...</p>
     </aside>
   </div>
-
-  <div id="chatModal" class="chat-modal hidden">
-    <div class="chat-container">
-      <div class="chat-header">
-        <div class="chat-user-info">
-          <img id="chatUserAvatar" class="user-avatar" alt="Chat User">
-          <div>
-            <h3 id="chatUserName">User Name</h3>
-            <p id="chatUserStatus" class="chat-user-status">Offline</p>
-          </div>
-        </div>
-        <div class="chat-header-actions">
-            <button class="btn-icon"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15.05 5A5 5 0 0 1 19 8.95M15.05 1A9 9 0 0 1 23 8.94m-1 7.98v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.98z"></path></svg></button>
-            <button class="btn-icon"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="23 7 16 12 23 17 23 7"></polygon><rect x="1" y="5" width="15" height="14" rx="2" ry="2"></rect></svg></button>
-            <button class="btn-icon"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"></line></svg></button>
-            <button id="closeChatModal" class="btn-icon chat-close"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg></button>
-        </div>
-      </div>
-      <div id="messagesContainer" class="messages-container">
-        <div class="chat-profile-panel">
-            <img id="chatProfileAvatar" class="profile-avatar" alt="Profile Avatar">
-            <h3 id="chatProfileName">User Name</h3>
-            <p>You're friends on DeepNet</p>
-        </div>
-        <div id="messagesList"></div>
-      </div>
-      <form id="chatInputForm" class="chat-input-form">
-        <button class="btn-icon"><span>😀</span></button>
-        <div class="chat-input-wrapper">
-            <input id="chatInput" class="chat-input" type="text" placeholder="Aa" autocomplete="off">
-        </div>
-        <button class="btn-icon"><span>👍</span></button>
-      </form>
-    </div>
-  </div>
   
-  <div id="profilePicModal" class="modal-backdrop hidden"></div>
-  <input type="file" id="profilePicInput" accept="image/*" class="hidden">
+  <div id="chatModal" class="chat-modal hidden"></div>
   <div id="notification" class="toast-notification"></div>
 
   <script type="module" src="app.js"></script>
