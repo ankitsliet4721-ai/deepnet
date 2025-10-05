@@ -87,8 +87,101 @@ const formatTime = (timestamp) => {
 };
 
 const getChatId = (userId1, userId2) => [userId1, userId2].sort().join('_');
+// =====================================================================
+// NEW: Theme Management System
+// =====================================================================
+const applyTheme = (theme) => {
+    DOMElements.html.setAttribute('data-color-scheme', theme);
+    DOMElements.themeToggle.textContent = theme === 'dark' ? '☀️' : '🌙';
+    localStorage.setItem('theme', theme);
+};
 
-// --- Draggable Chatbox Logic ---
+const toggleTheme = () => {
+    const currentTheme = DOMElements.html.getAttribute('data-color-scheme') || 'light';
+    const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+    applyTheme(newTheme);
+};
+
+// =====================================================================
+// NEW: Notification System
+// =====================================================================
+const createNotification = async (recipientId, type, contentSnippet = null, postId = null) => {
+    if (recipientId === currentUser.uid) return; // Prevent self-notification
+    try {
+        await addDoc(collection(db, 'notifications'), {
+            recipientId,
+            senderId: currentUser.uid,
+            senderName: currentUser.displayName,
+            type, // 'like', 'comment', 'share', 'message'
+            contentSnippet,
+            postId,
+            read: false,
+            createdAt: serverTimestamp(),
+        });
+    } catch (error) {
+        console.error("Error creating notification:", error);
+    }
+};
+
+const listenForNotifications = () => {
+    if (notificationsListener) notificationsListener();
+    const q = query(
+        collection(db, 'notifications'), 
+        where('recipientId', '==', currentUser.uid),
+        orderBy('createdAt', 'desc'),
+        limit(10) // Fetch latest 10 for performance
+    );
+    notificationsListener = onSnapshot(q, snapshot => {
+        const notifications = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        const unreadCount = notifications.filter(n => !n.read).length;
+        
+        DOMElements.notificationCount.textContent = unreadCount;
+        DOMElements.notificationCount.classList.toggle('hidden', unreadCount === 0);
+        
+        renderNotifications(notifications);
+    });
+};
+
+const renderNotifications = (notifications) => {
+    const { notificationsList } = DOMElements;
+    notificationsList.innerHTML = '';
+    if (notifications.length === 0) {
+        notificationsList.innerHTML = '<div class="no-notifications">No notifications yet.</div>';
+        return;
+    }
+    notifications.forEach(notif => {
+        const item = document.createElement('div');
+        item.className = `notification-item ${!notif.read ? 'unread' : ''}`;
+        
+        let icon = '🔔';
+        let text = '';
+        
+        switch(notif.type) {
+            case 'like': icon = '👍'; text = `<strong>${notif.senderName}</strong> liked your post.`; break;
+            case 'comment': icon = '💬'; text = `<strong>${notif.senderName}</strong> commented: "${notif.contentSnippet}"`; break;
+            case 'share': icon = '↗️'; text = `<strong>${notif.senderName}</strong> shared your post.`; break;
+            case 'message': icon = '✉️'; text = `<strong>${notif.senderName}</strong> sent you a message.`; break;
+            default: text = `New notification from <strong>${notif.senderName}</strong>.`; break;
+        }
+
+        item.innerHTML = `
+            <div class="notification-item-icon">${icon}</div>
+            <div class="notification-item-content">
+                <p>${text}</p>
+                <div class="notification-item-time">${formatTime(notif.createdAt)}</div>
+            </div>
+        `;
+        notificationsList.appendChild(item);
+    });
+};
+
+const markNotificationsAsRead = async () => {
+    const q = query(collection(db, 'notifications'), where('recipientId', '==', currentUser.uid), where('read', '==', false));
+    const snapshot = await getDocs(q);
+    snapshot.forEach(doc => updateDoc(doc.ref, { read: true }));
+};
+
+/ --- Draggable Chatbox Logic ---
 const makeDraggable = (element, handle) => {
     let pos1 = 0, pos2 = 0, pos3 = 0, pos4 = 0;
 
@@ -336,6 +429,23 @@ const listenForTyping = (chatId) => {
     }
   });
 };
+// --- Real-time Listeners Setup ---
+const listenForData = () => { if (postsListenerUnsubscribe) postsListenerUnsubscribe(); const qPosts = query(collection(db, 'posts'), orderBy('createdAt', 'desc')); postsListenerUnsubscribe = onSnapshot(qPosts, s => displayPosts(s.docs.map(d => ({ id: d.id, ...d.data() })))); if (onlineUsersListener) onlineUsersListener(); const qUsers = query(collection(db, 'users')); onlineUsersListener = onSnapshot(qUsers, s => renderOnlineUsers(s.docs.map(d => d.data()).filter(u => u.uid !== currentUser?.uid))); };
+const listenForMessages = (chatId) => { if (messagesListener) messagesListener(); const q = query(collection(db, 'chats', chatId, 'messages'), orderBy('timestamp', 'asc')); messagesListener = onSnapshot(q, s => renderMessages(s.docs.map(d => d.data()))); };
+const listenForTyping = (chatId) => { if (typingListener) typingListener(); typingListener = onSnapshot(doc(db, 'chats', chatId), s => { if (!s.exists() || !currentChatUser) return; const typing = s.data().typing || {}; if (typing[currentChatUser.uid]) { DOMElements.typingUserName.textContent = currentChatUser.displayName; DOMElements.typingIndicator.classList.remove('hidden'); } else { DOMElements.typingIndicator.classList.add('hidden'); } }); };
+
+// --- Core Actions (Chat, Posts, etc.) with NOTIFICATION TRIGGERS ---
+const openChat = (user) => { currentChatUser = user; DOMElements.chatUserAvatar.src = user.photoURL; DOMElements.chatUserName.textContent = user.displayName; DOMElements.chatUserStatus.textContent = user.presence?.state === 'online' ? 'Online' : 'Offline'; DOMElements.chatModal.classList.remove('hidden'); DOMElements.chatInput.focus(); const chatId = getChatId(currentUser.uid, user.uid); listenForMessages(chatId); listenForTyping(chatId); };
+const closeChat = () => { if (messagesListener) messagesListener(); if (typingListener) typingListener(); currentChatUser = null; DOMElements.chatModal.classList.add('hidden'); };
+const sendMessage = async () => { const text = DOMElements.chatInput.value.trim(); if (!text || !currentChatUser) return; DOMElements.chatInput.value = ''; const chatId = getChatId(currentUser.uid, currentChatUser.uid); await addDoc(collection(db, 'chats', chatId, 'messages'), { text, senderId: currentUser.uid, timestamp: serverTimestamp() }); await setDoc(doc(db, 'chats', chatId), { participants: [currentUser.uid, currentChatUser.uid], lastMessage: text }, { merge: true }); createNotification(currentChatUser.uid, 'message', text); };
+const updateTypingStatus = async (isTyping) => { if (!currentChatUser) return; const chatId = getChatId(currentUser.uid, currentChatUser.uid); await setDoc(doc(db, 'chats', chatId), { typing: { [currentUser.uid]: isTyping } }, { merge: true }); };
+const createPost = async () => { const content = DOMElements.postInput.value.trim(); if (!content) return; DOMElements.postButton.disabled = true; await addDoc(collection(db, 'posts'), { type: 'original', authorId: currentUser.uid, authorName: currentUser.displayName, authorAvatar: currentUser.photoURL, content, createdAt: serverTimestamp(), likes: 0, likedBy: [], commentList: [], shareCount: 0 }); DOMElements.postInput.value = ''; DOMElements.postButton.disabled = false; };
+window.deletePost = async (postId) => { if (confirm('Delete post?')) { await deleteDoc(doc(db, "posts", postId)); showToast('Post deleted.'); } };
+window.toggleLike = async (postId) => { const postRef = doc(db, 'posts', postId); const postSnap = await getDoc(postRef); if (!postSnap.exists()) return; const postData = postSnap.data(); const likedBy = postData.likedBy || []; if (likedBy.includes(currentUser.uid)) { await updateDoc(postRef, { likedBy: arrayRemove(currentUser.uid), likes: increment(-1) }); } else { await updateDoc(postRef, { likedBy: arrayUnion(currentUser.uid), likes: increment(1) }); createNotification(postData.authorId, 'like', null, postId); } };
+window.sharePost = async (originalPostId) => { const postRef = doc(db, 'posts', originalPostId); const postSnap = await getDoc(postRef); if (!postSnap.exists()) return showToast('Post not found.', 'error'); await addDoc(collection(db, 'posts'), { type: 'share', sharerId: currentUser.uid, sharerName: currentUser.displayName, createdAt: serverTimestamp(), originalPostId, originalPost: postSnap.data() }); await updateDoc(postRef, { shareCount: increment(1) }); createNotification(postSnap.data().authorId, 'share', null, originalPostId); showToast('Post shared!'); };
+window.focusCommentInput = (postId) => document.querySelector(`[data-post-id="${postId}"] .comment-input`).focus();
+window.addComment = async (e, postId) => { e.preventDefault(); const input = e.target.querySelector('.comment-input'); const text = input.value.trim(); if (!text) return; const comment = { id: doc(collection(db, 'tmp')).id, userId: currentUser.uid, author: currentUser.displayName, avatar: currentUser.photoURL, text, createdAt: new Date() }; const postRef = doc(db, 'posts', postId); await updateDoc(postRef, { commentList: arrayUnion(comment) }); input.value = ''; const postSnap = await getDoc(postRef); createNotification(postSnap.data().authorId, 'comment', text, postId); };
+window.deleteComment = async (postId, commentId) => { const postRef = doc(db, 'posts', postId); const postSnap = await getDoc(postRef); if (!postSnap.exists()) return; const commentToDelete = postSnap.data().commentList.find(c => c.id === commentId); if (commentToDelete) { await updateDoc(postRef, { commentList: arrayRemove(commentToDelete) }); } };
 
 // --- Chat Logic ---
 const openChat = (user) => {
