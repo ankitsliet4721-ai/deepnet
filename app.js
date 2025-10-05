@@ -52,6 +52,7 @@ let onlineUsersListener = null;
 let currentChatUser = null;
 let messagesListener = null;
 let typingTimer = null;
+let typingListener = null;
 
 // DOM Elements
 const loginModal = document.getElementById('loginModal');
@@ -69,11 +70,12 @@ const chatModal = document.getElementById('chatModal');
 const chatUserAvatar = document.getElementById('chatUserAvatar');
 const chatUserName = document.getElementById('chatUserName');
 const chatUserStatus = document.getElementById('chatUserStatus');
-const chatMessages = document.getElementById('chatMessages');
+const messagesContainer = document.getElementById('messagesContainer');
 const messagesList = document.getElementById('messagesList');
 const chatInput = document.getElementById('chatInput');
 const chatInputForm = document.getElementById('chatInputForm');
 const typingIndicator = document.getElementById('typingIndicator');
+const typingUserName = document.getElementById('typingUserName');
 
 // --- Utility Functions ---
 function showNotification(message, type = 'success') {
@@ -109,6 +111,18 @@ function formatTime(timestamp) {
   return date.toLocaleDateString('en-IN');
 }
 
+function formatMessageTime(timestamp) {
+  if (!timestamp?.toDate) return '';
+  const date = timestamp.toDate();
+  const now = new Date();
+  
+  if (now.toDateString() === date.toDateString()) {
+    return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  } else {
+    return date.toLocaleDateString() + ' ' + date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  }
+}
+
 function getChatId(userId1, userId2) {
   return [userId1, userId2].sort().join('_');
 }
@@ -120,11 +134,13 @@ async function updateUserPresence(isOnline) {
   try {
     await setDoc(doc(db, 'users', currentUser.uid), {
       uid: currentUser.uid,
-      displayName: currentUser.displayName || currentUser.email.split('@')[0], // Fixed here
+      displayName: currentUser.displayName || currentUser.email.split('@')[0],
       email: currentUser.email,
       photoURL: currentUser.photoURL || `https://i.pravatar.cc/40?u=${currentUser.uid}`,
-      isOnline: isOnline,
-      lastSeen: serverTimestamp()
+      presence: {
+        state: isOnline ? 'online' : 'offline',
+        last_changed: serverTimestamp()
+      }
     }, { merge: true });
   } catch (error) {
     console.error('Error updating presence:', error);
@@ -160,15 +176,16 @@ function renderOnlineUsers(users) {
   users.forEach(user => {
     const userEl = document.createElement('div');
     userEl.className = 'online-user-item';
-    userEl.title = user.isOnline ? 'Online' : 'Offline';
+    userEl.title = user.presence?.state === 'online' ? 'Online' : 'Offline';
     userEl.onclick = () => openChat(user);
     
+    const isOnline = user.presence?.state === 'online';
     userEl.innerHTML = `
       <div class="online-user-avatar">
-        <img src="${user.photoURL}" class="user-avatar" alt="${user.displayName}">
-        ${user.isOnline ? '<div class="online-indicator"></div>' : ''}
+        <img src="${user.photoURL || `https://i.pravatar.cc/40?u=${user.uid}`}" class="user-avatar" alt="${user.displayName || user.email}">
+        ${isOnline ? '<div class="online-indicator"></div>' : ''}
       </div>
-      <span class="online-user-name">${user.displayName}</span>
+      <span class="online-user-name">${user.displayName || user.email?.split('@')[0] || 'User'}</span>
     `;
     onlineUsersList.appendChild(userEl);
   });
@@ -177,9 +194,9 @@ function renderOnlineUsers(users) {
 // --- Chat Functions ---
 function openChat(user) {
   currentChatUser = user;
-  if (chatUserAvatar) chatUserAvatar.src = user.photoURL;
-  if (chatUserName) chatUserName.textContent = user.displayName;
-  if (chatUserStatus) chatUserStatus.textContent = user.isOnline ? 'Online' : 'Offline';
+  if (chatUserAvatar) chatUserAvatar.src = user.photoURL || `https://i.pravatar.cc/40?u=${user.uid}`;
+  if (chatUserName) chatUserName.textContent = user.displayName || user.email?.split('@')[0] || 'User';
+  if (chatUserStatus) chatUserStatus.textContent = user.presence?.state === 'online' ? 'Online' : 'Offline';
   
   if (chatModal) chatModal.classList.remove('hidden');
   if (chatInput) {
@@ -189,20 +206,29 @@ function openChat(user) {
 
   // Clean up previous listeners
   if (messagesListener) messagesListener();
+  if (typingListener) typingListener();
   
   const chatId = getChatId(currentUser.uid, user.uid);
+  
+  // Listen for messages with notification support
+  listenForMessages(chatId);
+  
+  // Listen for typing indicators
+  listenForTyping(chatId);
+}
+
+function listenForMessages(chatId) {
   const messagesRef = collection(db, 'chats', chatId, 'messages');
   const messagesQuery = query(messagesRef, orderBy('timestamp', 'asc'));
 
-  // Listen for messages with notification support
   messagesListener = onSnapshot(messagesQuery, (snapshot) => {
     // Check for new messages and show notifications
     snapshot.docChanges().forEach(change => {
       if (change.type === 'added') {
         const msg = change.doc.data();
-        // Only show notification if message is from another user
+        // Only show notification if message is from another user and chat modal is not focused
         if (msg.senderId !== currentUser.uid) {
-          showNotification(`New message from ${currentChatUser.displayName || 'a user'}`, 'success');
+          showNotification(`New message from ${currentChatUser.displayName || currentChatUser.email?.split('@')[0] || 'a user'}`, 'success');
         }
       }
     });
@@ -215,11 +241,36 @@ function openChat(user) {
   });
 }
 
+function listenForTyping(chatId) {
+  const chatRef = doc(db, 'chats', chatId);
+  
+  typingListener = onSnapshot(chatRef, (snapshot) => {
+    if (snapshot.exists()) {
+      const chatData = snapshot.data();
+      const typing = chatData.typing || {};
+      
+      // Check if other user is typing
+      const isOtherUserTyping = typing[currentChatUser.uid] === true;
+      
+      if (isOtherUserTyping && typingIndicator && typingUserName) {
+        typingUserName.textContent = currentChatUser.displayName || currentChatUser.email?.split('@')[0] || 'User';
+        typingIndicator.classList.remove('hidden');
+      } else if (typingIndicator) {
+        typingIndicator.classList.add('hidden');
+      }
+    }
+  }, error => {
+    console.error('Error listening for typing:', error);
+  });
+}
+
 function closeChat() {
   if (chatModal) chatModal.classList.add('hidden');
   if (messagesListener) messagesListener();
+  if (typingListener) typingListener();
   currentChatUser = null;
   if (messagesList) messagesList.innerHTML = '';
+  if (typingIndicator) typingIndicator.classList.add('hidden');
 }
 
 function renderMessages(messages) {
@@ -251,18 +302,6 @@ function createMessageElement(message) {
   return messageDiv;
 }
 
-function formatMessageTime(timestamp) {
-  if (!timestamp?.toDate) return '';
-  const date = timestamp.toDate();
-  const now = new Date();
-  
-  if (now.toDateString() === date.toDateString()) {
-    return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-  } else {
-    return date.toLocaleDateString() + ' ' + date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-  }
-}
-
 async function sendMessage() {
   const text = chatInput?.value?.trim();
   if (!text || !currentChatUser) return;
@@ -270,14 +309,29 @@ async function sendMessage() {
   const chatId = getChatId(currentUser.uid, currentChatUser.uid);
   
   try {
-    // Create chat document if it doesn't exist
+    // Create/Update chat document with enhanced data model
     await setDoc(doc(db, 'chats', chatId), {
       participants: [currentUser.uid, currentChatUser.uid],
-      lastMessage: text,
-      lastMessageTime: serverTimestamp()
+      participantInfo: {
+        [currentUser.uid]: { 
+          displayName: currentUser.displayName || currentUser.email.split('@')[0] 
+        },
+        [currentChatUser.uid]: { 
+          displayName: currentChatUser.displayName || currentChatUser.email?.split('@')[0] || 'User' 
+        }
+      },
+      lastMessage: {
+        text: text,
+        senderId: currentUser.uid,
+        timestamp: serverTimestamp()
+      },
+      typing: {
+        [currentUser.uid]: false,
+        [currentChatUser.uid]: false
+      }
     }, { merge: true });
     
-    // Add message
+    // Add message to subcollection
     await addDoc(collection(db, `chats/${chatId}/messages`), {
       text: text,
       senderId: currentUser.uid,
@@ -285,20 +339,48 @@ async function sendMessage() {
     });
     
     if (chatInput) chatInput.value = '';
-    stopTyping();
+    await stopTyping();
   } catch (error) {
     console.error('Error sending message:', error);
     showNotification('Error sending message', 'error');
   }
 }
 
-function handleTyping() {
+async function handleTyping() {
+  if (!currentChatUser) return;
+  
   clearTimeout(typingTimer);
+  
+  const chatId = getChatId(currentUser.uid, currentChatUser.uid);
+  
+  try {
+    // Set typing to true
+    await updateDoc(doc(db, 'chats', chatId), {
+      [`typing.${currentUser.uid}`]: true
+    });
+  } catch (error) {
+    console.error('Error updating typing status:', error);
+  }
+  
+  // Auto-stop typing after 3 seconds
   typingTimer = setTimeout(stopTyping, 3000);
 }
 
-function stopTyping() {
+async function stopTyping() {
+  if (!currentChatUser) return;
+  
   clearTimeout(typingTimer);
+  
+  const chatId = getChatId(currentUser.uid, currentChatUser.uid);
+  
+  try {
+    // Set typing to false
+    await updateDoc(doc(db, 'chats', chatId), {
+      [`typing.${currentUser.uid}`]: false
+    });
+  } catch (error) {
+    console.error('Error stopping typing status:', error);
+  }
 }
 
 function scrollToBottom() {
@@ -315,7 +397,6 @@ function setupAuthEventListeners() {
   const signupForm = document.getElementById('signupForm');
   const loginTab = document.getElementById('loginTab');
   const signupTab = document.getElementById('signupTab');
-  const closeModal = document.getElementById('closeModal');
   const logoutBtn = document.getElementById('logoutBtn');
 
   // Tab switching
@@ -330,23 +411,6 @@ function setupAuthEventListeners() {
     signupTab.addEventListener('click', (e) => {
       e.preventDefault();
       switchAuthTab('signup');
-    });
-  }
-  
-  // Modal close
-  if (closeModal) {
-    closeModal.addEventListener('click', (e) => {
-      e.preventDefault();
-      if (loginModal) loginModal.classList.add('hidden');
-    });
-  }
-  
-  // Click outside to close
-  if (loginModal) {
-    loginModal.addEventListener('click', (e) => {
-      if (e.target === loginModal) {
-        loginModal.classList.add('hidden');
-      }
     });
   }
   
@@ -639,7 +703,7 @@ function createPostElement(postData) {
           `<button class="post-menu" onclick="deletePost('${originalPostId}')">⋯</button>` 
           : ''}
       </div>
-      <div class="post-content">${originalPost.content.replace(/\n/g, '<br>')}</div>
+      <div class="post-content">${(originalPost.content || '').replace(/\n/g, '<br>')}</div>
       <div class="post-stats">
         <span>${originalPost.likes || 0} reactions • ${commentCount} comments</span>
         <span>${originalPost.shareCount || 0} shares</span>
@@ -672,7 +736,7 @@ function createPostElement(postData) {
           `<button class="post-menu" onclick="deletePost('${postData.id}')">⋯</button>` 
           : ''}
       </div>
-      <div class="post-content">${postData.content.replace(/\n/g, '<br>')}</div>
+      <div class="post-content">${(postData.content || '').replace(/\n/g, '<br>')}</div>
       <div class="post-stats">
         <span>${postData.likes || 0} reactions • ${commentCount} comments</span>
         <span>${postData.shareCount || 0} shares</span>
@@ -706,7 +770,7 @@ function renderComments(postEl, post) {
       <img src="${comment.avatar}" class="comment-avatar" alt="${comment.author}">
       <div>
         <div class="comment-body">
-          <strong>${comment.author}</strong><br>${comment.text.replace(/\n/g, '<br>')}
+          <strong>${comment.author}</strong><br>${(comment.text || '').replace(/\n/g, '<br>')}
         </div>
         <div class="comment-meta">
           ${formatTime(comment.createdAt)}
@@ -720,7 +784,7 @@ function renderComments(postEl, post) {
   });
 }
 
-// --- Chat Functions ---
+// --- Chat Event Listeners ---
 function setupChatEventListeners() {
   const chatToggle = document.getElementById('chatToggle');
   const closeChatModal = document.getElementById('closeChatModal');
@@ -886,6 +950,7 @@ window.commentKeydown = (e, postId) => {
   }
 };
 
+// Make openChat available globally
 window.openChat = openChat;
 
 // --- Auth State Observer ---
@@ -914,7 +979,11 @@ onAuthStateChanged(auth, async (user) => {
     showNotification(`Welcome back, ${userName}!`);
     
     // Handle page unload
-    window.addEventListener('beforeunload', () => updateUserPresence(false));
+    window.addEventListener('beforeunload', () => {
+      if (currentUser) {
+        updateUserPresence(false);
+      }
+    });
   } else {
     currentUser = null;
     if (appDiv) appDiv.classList.add('hidden');
@@ -923,6 +992,7 @@ onAuthStateChanged(auth, async (user) => {
     if (postsListenerUnsubscribe) postsListenerUnsubscribe();
     if (onlineUsersListener) onlineUsersListener();
     if (messagesListener) messagesListener();
+    if (typingListener) typingListener();
     
     if (postsContainer) postsContainer.innerHTML = '';
     if (onlineUsersList) onlineUsersList.innerHTML = '';
