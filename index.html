@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>DeepNet Social</title>
-    <link rel="stylesheet" href="enhanced-style.css">
+    <link rel="stylesheet" href="style.css">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
@@ -69,7 +69,8 @@
             </section>
 
             <section id="postsContainer" class="posts-container">
-                </section>
+                <!-- Posts will be dynamically loaded here -->
+            </section>
         </main>
 
         <aside class="right-sidebar">
@@ -101,10 +102,12 @@
         </aside>
     </div>
 
+    <!-- Login Modal -->
     <div id="loginModal" class="modal-backdrop">
         <div class="modal-content" style="padding: 32px; text-align: center;">
             <h2 style="margin-bottom: 24px;">Welcome to DeepNet Social</h2>
             <div id="authForms">
+                <!-- Login Form -->
                 <form id="loginForm" class="auth-form">
                     <div style="margin-bottom: 16px;">
                         <input type="email" id="loginEmail" placeholder="Email" required style="width: 100%; padding: 12px; border: 1px solid var(--color-border); border-radius: var(--radius-md);">
@@ -116,6 +119,7 @@
                     <p>Don't have an account? <a href="#" id="showSignup" style="color: var(--color-primary);">Sign up</a></p>
                 </form>
 
+                <!-- Signup Form -->
                 <form id="signupForm" class="auth-form hidden">
                     <div style="margin-bottom: 16px;">
                         <input type="text" id="signupName" placeholder="Full Name" required style="width: 100%; padding: 12px; border: 1px solid var(--color-border); border-radius: var(--radius-md);">
@@ -133,6 +137,7 @@
         </div>
     </div>
 
+    <!-- Chat Modal -->
     <div id="chatModal" class="chat-modal hidden">
         <div class="chat-container">
             <div class="chat-header" style="display: flex; align-items: center; justify-content: space-between; padding: 12px 16px; border-radius: var(--radius-lg) var(--radius-lg) 0 0;">
@@ -165,6 +170,7 @@
         </div>
     </div>
 
+    <!-- Profile Picture Upload Modal -->
     <div id="avatarModal" class="modal-backdrop hidden">
         <div class="modal-content" style="padding: 24px;">
             <h3 style="margin-bottom: 16px;">Update Profile Picture</h3>
@@ -176,8 +182,9 @@
         </div>
     </div>
 
+    <!-- Toast Notification -->
     <div id="notification" class="toast-notification"></div>
 
-    <script type="module" src="enhanced-app.js"></script>
+    <script type="module" src="app.js"></script>
 </body>
 </html>
