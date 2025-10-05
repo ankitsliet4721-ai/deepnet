@@ -156,41 +156,78 @@ const displayPosts = (posts) => {
 
 const createPostElement = (post) => {
   const postEl = document.createElement('div');
-  postEl.className = 'post';
-  postEl.dataset.postId = post.id;
+  
+  // Distinguish between a share and an original post
+  if (post.type === 'share') {
+      postEl.className = 'post shared-post';
+      const originalPost = post.originalPost;
+      const originalPostId = post.originalPostId;
+      const isLiked = originalPost.likedBy?.includes(currentUser?.uid);
 
-  const isLiked = post.likedBy?.includes(currentUser?.uid);
+      postEl.innerHTML = `
+          <div class="share-header">
+              🧠 <strong>${post.sharerName}</strong> shared this
+          </div>
+          <div class="post-content-wrapper">
+              <div class="post-header">
+                  <div class="post-author-info">
+                      <img src="${originalPost.authorAvatar}" class="user-avatar" alt="${originalPost.authorName}">
+                      <div>
+                          <div class="post-author">${originalPost.authorName}</div>
+                          <div class="post-time">${formatTime(originalPost.createdAt)}</div>
+                      </div>
+                  </div>
+              </div>
+              <div class="post-content">${(originalPost.content || '').replace(/\n/g, '<br>')}</div>
+              <div class="post-stats">
+                  <span>${originalPost.likes || 0} Likes</span>
+                  <span>${originalPost.commentList?.length || 0} Comments</span>
+                  <span>${originalPost.shareCount || 0} Shares</span>
+              </div>
+              <div class="post-actions">
+                  <button class="post-action ${isLiked ? 'liked' : ''}" onclick="toggleLike('${originalPostId}')">👍 Like</button>
+                  <button class="post-action" onclick="focusCommentInput('${originalPostId}')">💬 Comment</button>
+                  <button class="post-action" onclick="sharePost('${originalPostId}')">↗️ Share</button>
+              </div>
+          </div>
+      `;
+  } else {
+      postEl.className = 'post';
+      postEl.dataset.postId = post.id;
+      const isLiked = post.likedBy?.includes(currentUser?.uid);
 
-  postEl.innerHTML = `
-    <div class="post-header">
-      <div class="post-author-info">
-        <img src="${post.authorAvatar}" class="user-avatar" alt="${post.authorName}">
-        <div>
-          <div class="post-author">${post.authorName}</div>
-          <div class="post-time">${formatTime(post.createdAt)}</div>
-        </div>
-      </div>
-      ${post.authorId === currentUser?.uid ? `<button class="post-menu" onclick="deletePost('${post.id}')">✕</button>` : ''}
-    </div>
-    <div class="post-content">${post.content.replace(/\n/g, '<br>')}</div>
-    <div class="post-stats">
-      <span>${post.likes || 0} Likes</span>
-      <span>${post.commentList?.length || 0} Comments</span>
-    </div>
-    <div class="post-actions">
-      <button class="post-action ${isLiked ? 'liked' : ''}" onclick="toggleLike('${post.id}')">👍 Like</button>
-      <button class="post-action" onclick="focusCommentInput('${post.id}')">💬 Comment</button>
-      <button class="post-action" onclick="sharePost('${post.id}')">↗️ Share</button>
-    </div>
-    <div class="comments">
-      <div class="comment-list"></div>
-      <form class="comment-form" onsubmit="addComment(event, '${post.id}')">
-        <input class="comment-input" type="text" placeholder="Add a comment...">
-        <button type="submit" class="comment-btn">Post</button>
-      </form>
-    </div>
-  `;
-  renderComments(postEl, post.commentList);
+      postEl.innerHTML = `
+          <div class="post-header">
+              <div class="post-author-info">
+                  <img src="${post.authorAvatar}" class="user-avatar" alt="${post.authorName}">
+                  <div>
+                      <div class="post-author">${post.authorName}</div>
+                      <div class="post-time">${formatTime(post.createdAt)}</div>
+                  </div>
+              </div>
+              ${post.authorId === currentUser?.uid ? `<button class="post-menu" onclick="deletePost('${post.id}')">✕</button>` : ''}
+          </div>
+          <div class="post-content">${post.content.replace(/\n/g, '<br>')}</div>
+          <div class="post-stats">
+              <span>${post.likes || 0} Likes</span>
+              <span>${post.commentList?.length || 0} Comments</span>
+              <span>${post.shareCount || 0} Shares</span>
+          </div>
+          <div class="post-actions">
+              <button class="post-action ${isLiked ? 'liked' : ''}" onclick="toggleLike('${post.id}')">👍 Like</button>
+              <button class="post-action" onclick="focusCommentInput('${post.id}')">💬 Comment</button>
+              <button class="post-action" onclick="sharePost('${post.id}')">↗️ Share</button>
+          </div>
+          <div class="comments">
+              <div class="comment-list"></div>
+              <form class="comment-form" onsubmit="addComment(event, '${post.id}')">
+                  <input class="comment-input" type="text" placeholder="Add a comment...">
+                  <button type="submit" class="comment-btn">Post</button>
+              </form>
+          </div>
+      `;
+      renderComments(postEl, post.commentList);
+  }
   return postEl;
 };
 
@@ -312,6 +349,7 @@ const createPost = async () => {
   if (!content) return;
   DOMElements.postButton.disabled = true;
   await addDoc(collection(db, 'posts'), {
+    type: 'original',
     authorId: currentUser.uid,
     authorName: currentUser.displayName,
     authorAvatar: currentUser.photoURL,
@@ -320,6 +358,7 @@ const createPost = async () => {
     likes: 0,
     likedBy: [],
     commentList: [],
+    shareCount: 0
   });
   DOMElements.postInput.value = '';
   DOMElements.postButton.disabled = false;
@@ -345,7 +384,35 @@ window.toggleLike = async (postId) => {
   await updateDoc(postRef, updateData);
 };
 
-window.sharePost = () => showNotification('Share feature coming soon!', 'info');
+window.sharePost = async (originalPostId) => {
+  if (!currentUser) return showNotification('Please log in to share.', 'error');
+  
+  const originalPostRef = doc(db, 'posts', originalPostId);
+  const originalPostSnap = await getDoc(originalPostRef);
+
+  if (!originalPostSnap.exists()) {
+    return showNotification('This post no longer exists.', 'error');
+  }
+
+  const originalPostData = originalPostSnap.data();
+
+  await addDoc(collection(db, 'posts'), {
+    type: 'share',
+    sharerId: currentUser.uid,
+    sharerName: currentUser.displayName,
+    sharerAvatar: currentUser.photoURL,
+    createdAt: serverTimestamp(),
+    originalPostId: originalPostId,
+    originalPost: originalPostData // Denormalize by embedding original post data
+  });
+  
+  // Atomically increment the share count on the original post
+  await updateDoc(originalPostRef, {
+    shareCount: increment(1)
+  });
+
+  showNotification('Post shared successfully!', 'success');
+};
 
 window.focusCommentInput = (postId) => document.querySelector(`[data-post-id="${postId}"] .comment-input`).focus();
 
@@ -439,7 +506,6 @@ onAuthStateChanged(auth, async (user) => {
     DOMElements.app.classList.remove('hidden');
     DOMElements.loginModal.classList.add('hidden');
     
-    // Update UI with user info
     [DOMElements.userAvatar, DOMElements.sidebarAvatar, DOMElements.composerAvatar].forEach(el => el.src = currentUser.photoURL);
     DOMElements.profileName.textContent = currentUser.displayName;
     
