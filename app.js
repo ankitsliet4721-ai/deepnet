@@ -112,20 +112,33 @@ document.addEventListener('DOMContentLoaded', () => {
     if (user && user.emailVerified) {
       currentUser={uid:user.uid,displayName:user.displayName||user.email.split('@')[0],email:user.email,photoURL:user.photoURL||`https://i.pravatar.cc/40?u=${user.uid}`};
       DOMElements.app.classList.remove('hidden');
-      DOMElements.loginModal.classList.remove('hidden');
+      DOMElements.loginModal.classList.add('hidden');
       [DOMElements.userAvatar,DOMElements.sidebarAvatar,DOMElements.composerAvatar].forEach(el=>el.src=currentUser.photoURL);
       DOMElements.profileName.textContent=currentUser.displayName;
+      
       await updateUserPresence(true);
-      if(postsListener)postsListener();const qp=query(collection(db,'posts'),orderBy('createdAt','desc'));postsListener=onSnapshot(qp,s=>displayPosts(s.docs.map(d=>({id:d.id,...d.data()}))));
-      if(usersListener)usersListener();const qu=query(collection(db,'users'));usersListener=onSnapshot(qu,s=>renderOnlineUsers(s.docs.map(d=>d.data()).filter(u=>u.uid!==currentUser?.uid)));
+      
+      // Start all data listeners
+      if(postsListener)postsListener();
+      const qp=query(collection(db,'posts'),orderBy('createdAt','desc'));
+      postsListener=onSnapshot(qp,s=>displayPosts(s.docs.map(d=>({id:d.id,...d.data()}))));
+      
+      if(usersListener)usersListener();
+      const qu=query(collection(db,'users'));
+      usersListener=onSnapshot(qu,s=>renderOnlineUsers(s.docs.map(d=>d.data()).filter(u=>u.uid!==currentUser?.uid)));
+      
+      // **** THE FIX: START THE NOTIFICATION LISTENER ON LOGIN ****
       listenForNotifications();
+
     } else {
       currentUser=null;
       DOMElements.app.classList.add('hidden');
       DOMElements.loginModal.classList.remove('hidden');
-      if(postsListener)postsListener();
-      if(usersListener)usersListener();
-      if(notificationsListener)notificationsListener();
+      
+      // Stop all listeners on logout
+      if(postsListener) postsListener();
+      if(usersListener) usersListener();
+      if(notificationsListener) notificationsListener();
     }
   });
 
