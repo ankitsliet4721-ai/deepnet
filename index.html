@@ -50,7 +50,7 @@
         <a href="#" class="nav-link">Messages</a>
       </nav>
       <div class="user-menu">
-        <button id="themeToggle" class="btn-icon" title="Toggle Theme">☀️</button>
+        <button id="themeToggle" class="btn-icon" title="Toggle Theme">🌙</button>
         <div class="notification-wrapper">
           <button id="notificationsToggle" class="btn-icon" title="Notifications">
             🔔
@@ -58,7 +58,9 @@
           </button>
           <div id="notificationsPanel" class="notifications-panel hidden">
             <div class="notifications-header"><h3>Notifications</h3></div>
-            <div id="notificationsList" class="notifications-list"></div>
+            <div id="notificationsList" class="notifications-list">
+              <!-- Notifications will be rendered here by JavaScript -->
+            </div>
           </div>
         </div>
         <img id="userAvatar" class="user-avatar" alt="User Avatar">
@@ -92,7 +94,9 @@
           <button id="postButton" class="btn-primary">Post</button>
         </div>
       </div>
-      <div id="postsContainer" class="posts-container"></div>
+      <div id="postsContainer" class="posts-container">
+        <!-- Posts will be rendered here by JavaScript -->
+      </div>
     </main>
 
     <aside class="right-sidebar">
@@ -105,7 +109,7 @@
     </aside>
   </div>
 
-  <!-- Chat Modal -->
+  <!-- Draggable Chat Modal -->
   <div id="chatModal" class="chat-modal hidden">
     <div class="chat-container">
       <div class="chat-header">
@@ -136,6 +140,7 @@
     </div>
   </div>
   
+  <!-- Global Toast Notification -->
   <div id="notification" class="notification"></div>
 
   <script type="module" src="app.js"></script>
