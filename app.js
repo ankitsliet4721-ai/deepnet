@@ -34,17 +34,18 @@ import {
 
 // --- App Initialization wrapped in DOMContentLoaded to prevent race conditions ---
 document.addEventListener('DOMContentLoaded', () => {
-    // --- Firebase Configuration & Initialization ---
-    // IMPORTANT: Replace this with your own Firebase project configuration!
+    // --- Your web app's Firebase configuration ---
     const firebaseConfig = {
-        apiKey: "YOUR_API_KEY",
-        authDomain: "YOUR_AUTH_DOMAIN",
-        projectId: "YOUR_PROJECT_ID",
-        storageBucket: "YOUR_STORAGE_BUCKET",
-        messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
-        appId: "YOUR_APP_ID",
+        apiKey: "AIzaSyALLWz-xkvroabNu_ug6ZVdDEmNF3O2eJs",
+        authDomain: "deep-9656b.firebaseapp.com",
+        projectId: "deep-9656b",
+        storageBucket: "deep-9656b.firebasestorage.app",
+        messagingSenderId: "786248126233",
+        appId: "1:786248126233:web:be8ebed2a68281204eff88",
+        measurementId: "G-FWC45EBFFP"
     };
 
+    // --- Firebase Initialization ---
     const app = initializeApp(firebaseConfig);
     const auth = getAuth(app);
     const db = getFirestore(app);
