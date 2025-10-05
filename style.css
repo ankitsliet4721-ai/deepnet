@@ -108,18 +108,23 @@ header { grid-area: header; position: sticky; top: 0; z-index: 100; display: fle
 .comment-input { flex: 1; background: var(--color-background); border: 1px solid var(--color-border); border-radius: var(--radius-base); padding: 8px; }
 
 /* =====================================================================
-   Notification System
+   Notification System - ENHANCED UX
    ===================================================================== */
 .notification-wrapper { position: relative; }
 .notification-badge { position: absolute; top: 2px; right: 2px; background-color: var(--color-primary); color: white; border-radius: var(--radius-full); width: 18px; height: 18px; font-size: 10px; font-weight: bold; display: flex; align-items: center; justify-content: center; border: 2px solid var(--color-surface); animation: bounce-in 0.5s; }
-.notifications-panel { position: absolute; top: 140%; right: 0; background-color: rgba(var(--color-surface), 0.8); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); border-radius: var(--radius-lg); border: 1px solid var(--color-border); box-shadow: var(--shadow-lg); width: 380px; max-height: 450px; overflow-y: auto; z-index: 110; }
+.notifications-panel { position: absolute; top: 140%; right: 0; background-color: rgba(var(--color-surface), 0.8); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); border-radius: var(--radius-lg); border: 1px solid var(--color-border); box-shadow: 0 10px 30px var(--color-shadow); width: 380px; max-height: 450px; overflow-y: auto; z-index: 110; }
 .notifications-header { padding: 12px 16px; border-bottom: 1px solid var(--color-border); font-weight: 600; }
-.notification-item { display: flex; align-items: center; gap: 12px; padding: 12px; border-bottom: 1px solid var(--color-border); cursor: pointer; }
-.notification-item:hover { background-color: var(--color-background); }
+.notification-item { display: flex; align-items: center; gap: 12px; padding: 12px; border-bottom: 1px solid var(--color-border); cursor: pointer; /* ADDED: Cursor pointer */ transition: background-color var(--duration-normal); }
+.notification-item:hover { background-color: var(--color-background); } /* ADDED: Hover effect */
 .notification-item.unread { background-color: var(--color-unread); }
+.notification-item:last-child { border-bottom: none; }
 .notification-item-icon { font-size: 1.5rem; width: 40px; text-align: center; }
 .notification-item-time { font-size: var(--font-size-sm); color: var(--color-text-secondary); margin-top: 4px; }
 .no-notifications { padding: 20px; text-align: center; color: var(--color-text-secondary); }
+.shake { animation: shake 0.5s cubic-bezier(.36,.07,.19,.97) both; }
+
+@keyframes shake { 10%, 90% { transform: translate3d(-1px, 0, 0); } 20%, 80% { transform: translate3d(2px, 0, 0); } 30%, 50%, 70% { transform: translate3d(-4px, 0, 0); } 40%, 60% { transform: translate3d(4px, 0, 0); } }
+@keyframes bounce-in { 0% { transform: scale(0.5); opacity: 0; } 80% { transform: scale(1.1); opacity: 1; } 100% { transform: scale(1); } }
 
 /* =====================================================================
    Draggable Chatbox
@@ -134,15 +139,13 @@ header { grid-area: header; position: sticky; top: 0; z-index: 100; display: fle
 .message.received .message-bubble { background: var(--color-surface); border: 1px solid var(--color-border); }
 
 /* =====================================================================
-   Modals & Animations
+   Modals & Toasts
    ===================================================================== */
 .modal-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.5); backdrop-filter: blur(5px); -webkit-backdrop-filter: blur(5px); display: flex; align-items: center; justify-content: center; z-index: 2000; }
 .modal-content { background: var(--color-surface); border-radius: var(--radius-lg); width: 100%; max-width: 480px; }
 .auth-form input { background: var(--color-background); }
 .toast-notification { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background-color: var(--color-text); color: var(--color-background); padding: 12px 20px; border-radius: var(--radius-md); box-shadow: var(--shadow-lg); z-index: 2500; opacity: 0; transform: translate(-50%, 100%); transition: all var(--duration-normal) var(--ease-standard); }
 .toast-notification.show { opacity: 1; transform: translate(-50%, 0); }
-
-@keyframes bounce-in { 0% { transform: scale(0.5); opacity: 0; } 80% { transform: scale(1.1); opacity: 1; } 100% { transform: scale(1); } }
 
 /* =====================================================================
    Responsive Design
