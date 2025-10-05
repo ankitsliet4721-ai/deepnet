@@ -1,710 +1,190 @@
 <!DOCTYPE html>
 <html lang="en" data-color-scheme="light">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>DeepNet Social - AI Research Community</title>
-  <style>
-    /* =====================================================================
-       Design System Tokens (Light & Dark/Gray Mode)
-       ===================================================================== */
-    :root {
-      /* Core Palette */
-      --font-family-base: "Inter", -apple-system, sans-serif;
-      --radius-sm: 4px; --radius-md: 8px; --radius-lg: 12px; --radius-full: 9999px;
-      --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
-      --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
-      --duration-normal: 250ms; --ease-standard: cubic-bezier(0.4, 0, 0.2, 1);
-
-      /* Light Mode */
-      --color-background-light: #f8f9fa;
-      --color-surface-light: #ffffff;
-      --color-text-light: #212529;
-      --color-text-secondary-light: #6c757d;
-      --color-primary-light: #0d6efd;
-      --color-primary-hover-light: #0b5ed7;
-      --color-border-light: #dee2e6;
-      --color-unread-light: #eef2ff;
-      --color-shadow-light: rgba(0, 0, 0, 0.1);
-    }
-
-    html[data-color-scheme="light"] {
-      --color-background: var(--color-background-light);
-      --color-surface: var(--color-surface-light);
-      --color-text: var(--color-text-light);
-      --color-text-secondary: var(--color-text-secondary-light);
-      --color-primary: var(--color-primary-light);
-      --color-primary-hover: var(--color-primary-hover-light);
-      --color-border: var(--color-border-light);
-      --color-unread: var(--color-unread-light);
-      --color-shadow: var(--color-shadow-light);
-    }
-
-    /* Dark/Gray Mode */
-    html[data-color-scheme="dark"] {
-      --color-background: #121212;
-      --color-surface: #1e1e1e;
-      --color-text: #e0e0e0;
-      --color-text-secondary: #a0a0a0;
-      --color-primary: #3b82f6;
-      --color-primary-hover: #60a5fa;
-      --color-border: #333333;
-      --color-unread: #2c3e50;
-      --color-shadow: rgba(0, 0, 0, 0.4);
-    }
-
-    /* =====================================================================
-       Base & Layout
-       ===================================================================== */
-    *, *::before, *::after { box-sizing: border-box; }
-    body { margin: 0; font-family: var(--font-family-base); background-color: var(--color-background); color: var(--color-text); overflow: hidden; }
-    .hidden { display: none !important; }
-    body.dragging-no-select * { user-select: none; -webkit-user-select: none; }
-
-    .app-container { display: grid; grid-template-columns: 280px minmax(0, 1fr) 320px; grid-template-rows: auto 1fr; grid-template-areas: "header header header" "left-sidebar main-content right-sidebar"; height: 100vh; max-width: 1400px; margin: 0 auto; gap: 24px; padding: 0 24px; }
-    header { grid-area: header; position: sticky; top: 0; z-index: 100; display: flex; align-items: center; justify-content: space-between; padding: 12px 0; background-color: rgba(var(--color-surface), 0.8); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); border-bottom: 1px solid var(--color-border); }
-    .left-sidebar, .right-sidebar, .main-content { overflow-y: auto; height: calc(100vh - 70px); padding-top: 24px; }
-    .left-sidebar { grid-area: left-sidebar; position: sticky; top: 70px; }
-    .right-sidebar { grid-area: right-sidebar; position: sticky; top: 70px; }
-    .main-content { grid-area: main-content; }
-    .left-sidebar::-webkit-scrollbar, .right-sidebar::-webkit-scrollbar, .main-content::-webkit-scrollbar { width: 0; }
-
-    /* =====================================================================
-       Components
-       ===================================================================== */
-    .logo { display: flex; align-items: center; gap: 12px; font-weight: 700; color: var(--color-text); font-size: 1.25rem; text-decoration: none; }
-    .user-avatar, .profile-avatar, .comment-avatar { border-radius: var(--radius-full); object-fit: cover; }
-    .user-avatar { width: 40px; height: 40px; border: 2px solid var(--color-border); }
-    .profile-avatar { width: 64px; height: 64px; border: 3px solid var(--color-primary); }
-    .user-menu { display: flex; align-items: center; gap: 12px; }
-    .btn, .btn-icon { border: none; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; border-radius: var(--radius-md); transition: all var(--duration-normal) var(--ease-standard); }
-    .btn-primary { background-image: linear-gradient(to right, #3b82f6, #60a5fa); color: white; padding: 10px 16px; font-weight: 600; }
-    .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 4px 10px rgba(59, 130, 246, 0.4); }
-    .btn-secondary { background-color: var(--color-surface); color: var(--color-text); border: 1px solid var(--color-border); padding: 8px 14px; }
-    .btn-icon { background-color: transparent; color: var(--color-text-secondary); font-size: 1.25rem; width: 40px; height: 40px; border-radius: var(--radius-full); }
-    .btn-icon:hover { background-color: var(--color-border); color: var(--color-text); }
-    .card { background: var(--color-surface); border-radius: var(--radius-lg); border: 1px solid var(--color-border); box-shadow: var(--shadow-sm); transition: transform var(--duration-normal), box-shadow var(--duration-normal); }
-    .card:hover { transform: translateY(-3px); box-shadow: var(--shadow-lg); }
-    .sidebar-section, .sidebar-card { background: transparent; border: none; box-shadow: none; padding: 0; margin-bottom: 24px; }
-    .sidebar-section h4 { margin-bottom: 12px; color: var(--color-text-secondary); }
-
-    .online-user-item { display: flex; align-items: center; gap: 12px; padding: 8px; border-radius: var(--radius-md); cursor: pointer; }
-    .online-user-item:hover { background: var(--color-background); }
-    .online-user-avatar { position: relative; }
-    .online-indicator { position: absolute; bottom: 0; right: 0; width: 12px; height: 12px; background: #22c55e; border: 2px solid var(--color-surface); border-radius: var(--radius-full); }
-    
-    /* Post Composer Enhancements */
-    .composer { margin-bottom: 24px; padding: 16px; background-color: var(--color-surface); border-radius: var(--radius-lg); border: 1px solid var(--color-border); }
-    .composer-header { display: flex; gap: 12px; }
-    .composer-header textarea { flex: 1; min-height: 80px; background: var(--color-background); color: var(--color-text); border: 1px solid var(--color-border); border-radius: var(--radius-md); padding: 12px; resize: vertical; font-family: inherit; font-size: 1rem;}
-    .composer-actions { display: flex; justify-content: space-between; align-items: center; padding-top: 12px; margin-top: 12px; border-top: 1px solid var(--color-border); }
-    .composer-options { display: flex; align-items: center; gap: 8px;}
-
-    .image-preview-container { margin-top: 10px; position: relative; }
-    .image-preview { max-width: 100%; max-height: 200px; border-radius: var(--radius-md); }
-    .remove-image-btn { position: absolute; top: 5px; right: 5px; background: rgba(0,0,0,0.6); color: white; border: none; border-radius: 50%; width: 24px; height: 24px; cursor: pointer; display: flex; justify-content: center; align-items: center; font-weight: bold; }
-
-    .option-btn { background-color: var(--color-background); color: var(--color-text-secondary); padding: 8px 12px; border-radius: var(--radius-md); border: 1px solid var(--color-border); cursor: pointer; font-weight: 500;}
-    .option-btn:hover { background-color: var(--color-border); }
-    .file-input-label { display: inline-block; cursor: pointer; }
-    .file-input { display: none; }
-
-    /* Post Styling */
-    .posts-container { display: grid; gap: 24px; }
-    .post { padding: 16px; background-color: var(--color-surface); border-radius: var(--radius-lg); border: 1px solid var(--color-border); }
-    .post-header { display: flex; justify-content: space-between; margin-bottom: 12px; }
-    .post-author-info { display: flex; align-items: center; gap: 12px; }
-    .post-author { font-weight: 600;}
-    .post-time { font-size: 0.875rem; color: var(--color-text-secondary);}
-    .post-menu { background: none; border: none; color: var(--color-text-secondary); cursor: pointer; font-size: 1.2rem;}
-    .post-content-text { margin-bottom: 12px; white-space: pre-wrap; }
-    .post-image { width: 100%; border-radius: var(--radius-md); margin-bottom: 12px; }
-    .post-stats { display: flex; gap: 16px; font-size: 0.875rem; color: var(--color-text-secondary); padding-bottom: 8px; margin-bottom: 8px; border-bottom: 1px solid var(--color-border); }
-    .post-actions { display: flex; justify-content: space-around; }
-    .post-action { background: none; border: none; color: var(--color-text-secondary); flex: 1; padding: 8px; border-radius: var(--radius-md); display: flex; align-items: center; justify-content: center; gap: 6px; cursor: pointer; font-weight: 600; transition: all var(--duration-normal) var(--ease-standard); }
-    .post-action:hover { background: var(--color-background); color: var(--color-primary); }
-    .post-action.liked { color: var(--color-primary); }
-
-    .comments { margin-top: 16px; border-top: 1px solid var(--color-border); padding-top: 16px; }
-    .comment-item { display: flex; gap: 8px; margin-bottom: 12px; }
-    .comment-avatar { width: 32px; height: 32px; }
-    .comment-body { background: var(--color-background); padding: 8px 12px; border-radius: var(--radius-md); }
-    .comment-form { display: flex; gap: 8px; margin-top: 12px; }
-    .comment-input { flex: 1; background: var(--color-background); border: 1px solid var(--color-border); border-radius: var(--radius-md); padding: 8px; }
-    .comment-btn { background-color: var(--color-primary); color: white; border: none; padding: 8px 12px; border-radius: var(--radius-md); cursor: pointer; }
-
-    /* Profile Card & Picture Upload */
-    .profile-card { text-align: center; }
-    .profile-avatar-wrapper { position: relative; display: inline-block; }
-    #upload-pfp-btn { position: absolute; bottom: 0; right: 0; background: var(--color-primary); color: white; border-radius: 50%; width: 24px; height: 24px; border: 2px solid var(--color-surface); cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 0.8rem; }
-    #profileName { margin-top: 12px;}
-
-    /* =====================================================================
-       Notification System - ENHANCED UX
-       ===================================================================== */
-    .notification-wrapper { position: relative; }
-    .notification-badge { position: absolute; top: 2px; right: 2px; background-color: var(--color-primary); color: white; border-radius: var(--radius-full); width: 18px; height: 18px; font-size: 10px; font-weight: bold; display: flex; align-items: center; justify-content: center; border: 2px solid var(--color-surface); animation: bounce-in 0.5s; }
-    .notifications-panel { position: absolute; top: 140%; right: 0; background-color: var(--color-surface); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); border-radius: var(--radius-lg); border: 1px solid var(--color-border); box-shadow: 0 10px 30px var(--color-shadow); width: 380px; max-height: 450px; overflow-y: auto; z-index: 110; }
-    .notifications-header { padding: 12px 16px; border-bottom: 1px solid var(--color-border); font-weight: 600; }
-    .notification-item { display: flex; align-items: center; gap: 12px; padding: 12px; border-bottom: 1px solid var(--color-border); cursor: pointer; transition: background-color var(--duration-normal); }
-    .notification-item:hover { background-color: var(--color-background); }
-    .notification-item.unread { background-color: var(--color-unread); }
-    .notification-item:last-child { border-bottom: none; }
-    .notification-item-icon { font-size: 1.5rem; width: 40px; text-align: center; }
-    .notification-item-time { font-size: 0.875rem; color: var(--color-text-secondary); margin-top: 4px; }
-    .no-notifications { padding: 20px; text-align: center; color: var(--color-text-secondary); }
-    .shake { animation: shake 0.5s cubic-bezier(.36,.07,.19,.97) both; }
-
-    @keyframes shake { 10%, 90% { transform: translate3d(-1px, 0, 0); } 20%, 80% { transform: translate3d(2px, 0, 0); } 30%, 50%, 70% { transform: translate3d(-4px, 0, 0); } 40%, 60% { transform: translate3d(4px, 0, 0); } }
-    @keyframes bounce-in { 0% { transform: scale(0.5); opacity: 0; } 80% { transform: scale(1.1); opacity: 1; } 100% { transform: scale(1); } }
-
-    /* =====================================================================
-       Draggable Chatbox
-       ===================================================================== */
-    .chat-modal { position: fixed; inset: 0; pointer-events: none; z-index: 1500; }
-    .chat-modal:not(.hidden) { pointer-events: auto; }
-    .chat-container { position: fixed; bottom: 20px; right: 20px; background-color: var(--color-surface); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); border-radius: var(--radius-lg); width: 95%; max-width: 420px; height: 500px; display: flex; flex-direction: column; box-shadow: var(--shadow-lg); border: 1px solid var(--color-border); }
-    .chat-header { display: flex; justify-content: space-between; align-items: center; padding: 12px; background-image: linear-gradient(to right, #3b82f6, #60a5fa); color: white; cursor: move; border-top-left-radius: var(--radius-lg); border-top-right-radius: var(--radius-lg); }
-    .chat-user-info { display: flex; align-items: center; gap: 10px; }
-    .chat-user-avatar { width: 36px; height: 36px; border-radius: 50%; }
-    .chat-user-status { font-size: 0.8rem; opacity: 0.8; }
-    .chat-close { background: none; border: none; color: white; font-size: 1.5rem; cursor: pointer; }
-    .messages-container { flex: 1; padding: 10px; overflow-y: auto; background: var(--color-background); }
-    .message { display: flex; margin-bottom: 10px; }
-    .message-bubble { padding: 10px 15px; border-radius: 18px; max-width: 75%; }
-    .message-timestamp { font-size: 0.75rem; color: var(--color-text-secondary); margin-top: 4px; }
-    .message.sent { justify-content: flex-end; }
-    .message.sent .message-bubble { background-color: var(--color-primary); color: white; }
-    .message.received .message-bubble { background: var(--color-surface); border: 1px solid var(--color-border); }
-    .typing-indicator { padding: 10px; font-style: italic; color: var(--color-text-secondary);}
-    .chat-input-form { display: flex; padding: 10px; border-top: 1px solid var(--color-border); background: var(--color-surface); }
-    .chat-input { flex: 1; border: 1px solid var(--color-border); background-color: var(--color-background); border-radius: var(--radius-full); padding: 10px 15px; }
-    .chat-send { background: var(--color-primary); color: white; border: none; border-radius: 50%; width: 40px; height: 40px; margin-left: 10px; cursor: pointer; }
-
-    /* =====================================================================
-       Modals & Toasts
-       ===================================================================== */
-    .login-modal { position: fixed; inset: 0; background: rgba(0,0,0,0.5); backdrop-filter: blur(5px); -webkit-backdrop-filter: blur(5px); display: flex; align-items: center; justify-content: center; z-index: 2000; }
-    .modal-content { background: var(--color-surface); padding: 2rem; border-radius: var(--radius-lg); width: 100%; max-width: 480px; }
-    .modal-header { text-align: center; margin-bottom: 1.5rem; }
-    .auth-tabs { display: flex; border-bottom: 1px solid var(--color-border); margin-bottom: 1.5rem; }
-    .auth-tabs button { flex: 1; background: none; border: none; padding: 1rem; cursor: pointer; font-size: 1rem; color: var(--color-text-secondary); border-bottom: 2px solid transparent; }
-    .auth-tabs button.active { color: var(--color-primary); border-bottom-color: var(--color-primary); font-weight: 600; }
-    .auth-form .input-group { display: flex; flex-direction: column; gap: 1rem; margin-bottom: 1.5rem; }
-    .auth-form input { background: var(--color-background); border: 1px solid var(--color-border); border-radius: var(--radius-md); padding: 12px; color: var(--color-text); }
-    .auth-message { margin-top: 1rem; text-align: center; color: var(--color-primary); }
-    .notification { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background-color: var(--color-text); color: var(--color-background); padding: 12px 20px; border-radius: var(--radius-md); box-shadow: var(--shadow-lg); z-index: 2500; opacity: 0; transform: translate(-50%, 100%); transition: all var(--duration-normal) var(--ease-standard); }
-    .notification.show { opacity: 1; transform: translate(-50%, 0); }
-    .notification.error { background-color: #dc3545; }
-    .notification.info { background-color: #0dcaf0; }
-
-    /* =====================================================================
-       Responsive Design
-       ===================================================================== */
-    @media (max-width: 1024px) { .app-container { grid-template-columns: 280px 1fr; grid-template-areas: "header header" "left-sidebar main-content"; } .right-sidebar { display: none; } }
-    @media (max-width: 768px) { .app-container { grid-template-columns: 1fr; grid-template-areas: "header" "main-content"; padding: 0 16px; } .left-sidebar, .header-nav { display: none; } }
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DeepNet Social</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 </head>
 <body>
+    <div id="app" class="app-container">
+        <header>
+            <a href="#" class="logo">
+                <div style="width: 32px; height: 32px; background: linear-gradient(135deg, #3b82f6, #60a5fa); border-radius: 8px; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold;">D</div>
+                DeepNet Social
+            </a>
+            <nav class="header-nav">
+                <div class="user-menu">
+                    <div class="notification-wrapper">
+                        <button id="notificationsToggle" class="btn-icon">🔔</button>
+                        <span id="notificationCount" class="notification-badge hidden">0</span>
+                        <div id="notificationsPanel" class="notifications-panel hidden">
+                            <div class="notifications-header">Notifications</div>
+                            <div id="notificationsList" class="notifications-list"></div>
+                        </div>
+                    </div>
+                    <button id="themeToggle" class="btn-icon" title="Toggle theme">🌙</button>
+                    <img id="userAvatar" src="https://via.placeholder.com/40" alt="User" class="user-avatar">
+                    <button id="logoutBtn" class="btn-secondary">Logout</button>
+                </div>
+            </nav>
+        </header>
 
-  <!-- Login Modal -->
-  <div id="loginModal" class="login-modal">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h2>DeepNet Social</h2>
-        <p>Connect with AI researchers worldwide</p>
-      </div>
-      <div class="auth-tabs">
-        <button id="loginTab" class="active">Login</button>
-        <button id="signupTab">Sign Up</button>
-      </div>
-      <form id="loginForm" class="auth-form">
-        <div class="input-group">
-          <input type="email" name="email" placeholder="Email address" required>
-          <input type="password" name="password" placeholder="Password" required>
-        </div>
-        <button type="submit" class="btn-primary" style="width:100%">Log In</button>
-        <div id="loginMessage" class="auth-message"></div>
-      </form>
-      <form id="signupForm" class="auth-form hidden">
-        <div class="input-group">
-          <input type="text" name="displayName" placeholder="Full Name" required>
-          <input type="email" name="email" placeholder="Email address" required>
-          <input type="password" name="password" placeholder="Create password" minlength="6" required>
-        </div>
-        <button type="submit" class="btn-primary" style="width:100%">Sign Up</button>
-        <div id="signupMessage" class="auth-message"></div>
-      </form>
-    </div>
-  </div>
-
-  <!-- Main Application -->
-  <div id="app" class="app-container hidden">
-    <header>
-      <a href="#" class="logo">
-        <span class="logo-icon">🌐</span> DeepNet Social
-      </a>
-      <nav class="header-nav">
-        <a href="#" class="nav-link active">Home</a>
-        <a href="#" class="nav-link">Research</a>
-        <a href="#" class="nav-link">Messages</a>
-      </nav>
-      <div class="user-menu">
-        <button id="themeToggle" class="btn-icon" title="Toggle Theme">🌙</button>
-        <div class="notification-wrapper">
-          <button id="notificationsToggle" class="btn-icon" title="Notifications">
-            🔔
-            <span id="notificationCount" class="notification-badge hidden"></span>
-          </button>
-          <div id="notificationsPanel" class="notifications-panel hidden">
-            <div class="notifications-header"><h3>Notifications</h3></div>
-            <div id="notificationsList" class="notifications-list"></div>
-          </div>
-        </div>
-        <img id="userAvatar" class="user-avatar" alt="User Avatar">
-        <button id="logoutBtn" class="btn-primary">Logout</button>
-      </div>
-    </header>
-
-    <aside class="left-sidebar">
-      <div class="sidebar-section profile-card">
-        <div class="profile-avatar-wrapper">
-          <img id="sidebarAvatar" class="profile-avatar" alt="Profile Avatar">
-          <label for="pfpInput" id="upload-pfp-btn" title="Change profile picture">✏️</label>
-          <input type="file" id="pfpInput" class="file-input" accept="image/*">
-        </div>
-        <h3 id="profileName">User Name</h3>
-        <p id="status" class="status">Connecting...</p>
-      </div>
-      <div class="sidebar-section">
-        <h4>🟢 Online Users</h4>
-        <div id="onlineUsersList" class="online-users-list"></div>
-      </div>
-    </aside>
-
-    <main class="main-content">
-      <div class="composer">
-        <div class="composer-header">
-          <img id="composerAvatar" class="user-avatar" alt="Your Avatar">
-          <textarea id="postInput" placeholder="Share your research insights..."></textarea>
-        </div>
-        <div id="imagePreviewContainer" class="image-preview-container hidden">
-          <img id="imagePreview" class="image-preview" src="" alt="Image preview">
-          <button id="removeImageBtn" class="remove-image-btn">&times;</button>
-        </div>
-        <div class="composer-actions">
-          <div class="composer-options">
-            <label for="imageInput" class="file-input-label option-btn">📷 Add Image</label>
-            <input type="file" id="imageInput" class="file-input" accept="image/*">
-          </div>
-          <button id="postButton" class="btn-primary">Post</button>
-        </div>
-      </div>
-      <div id="postsContainer" class="posts-container"></div>
-    </main>
-
-    <aside class="right-sidebar">
-      <div class="sidebar-card">
-        <h3>Trending in AI</h3>
-      </div>
-      <div class="sidebar-card">
-        <h3>Suggested Connections</h3>
-      </div>
-    </aside>
-  </div>
-
-  <!-- Draggable Chat Modal -->
-  <div id="chatModal" class="chat-modal hidden">
-    <div class="chat-container">
-      <div class="chat-header">
-        <div class="chat-user-info">
-          <img id="chatUserAvatar" class="chat-user-avatar" alt="Chat User">
-          <div>
-            <h3 id="chatUserName">User Name</h3>
-            <p id="chatUserStatus" class="chat-user-status">Offline</p>
-          </div>
-        </div>
-        <button id="closeChatModal" class="chat-close">&times;</button>
-      </div>
-      <div id="messagesContainer" class="messages-container">
-        <div id="messagesList"></div>
-        <div id="typingIndicator" class="typing-indicator hidden">
-          <span id="typingUserName">User</span>&nbsp;is typing...
-        </div>
-      </div>
-      <form id="chatInputForm" class="chat-input-form">
-        <input id="chatInput" class="chat-input" type="text" placeholder="Type a message..." autocomplete="off">
-        <button class="chat-send" type="submit">➢</button>
-      </form>
-    </div>
-  </div>
-  
-  <div id="notification" class="notification"></div>
-
-  <script type="module">
-    // --- Firebase Imports ---
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-    import { 
-      getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, 
-      onAuthStateChanged, signOut, sendEmailVerification, updateProfile
-    } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-    import { 
-      getFirestore, collection, addDoc, doc, getDoc, deleteDoc, updateDoc, 
-      query, orderBy, onSnapshot, serverTimestamp, arrayUnion, arrayRemove, 
-      increment, setDoc, where, limit, getDocs
-    } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
-    import { 
-      getStorage, ref, uploadBytes, getDownloadURL 
-    } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-storage.js";
-
-    document.addEventListener('DOMContentLoaded', () => {
-
-      // --- Firebase Configuration ---
-      const firebaseConfig = {
-        apiKey: "AIzaSyALLWz-xkvroabNu_ug6ZVdDEmNF3O2eJs",
-        authDomain: "deep-9656b.firebaseapp.com",
-        projectId: "deep-9656b",
-        storageBucket: "deep-9656b.firebasestorage.app",
-        messagingSenderId: "786248126233",
-        appId: "1:786248126233:web:be8ebed2a68281204eff88",
-        measurementId: "G-FWC45EBFFP"
-      };
-
-      // --- Firebase Initialization ---
-      const app = initializeApp(firebaseConfig);
-      const auth = getAuth(app);
-      const db = getFirestore(app);
-      const storage = getStorage(app);
-
-      // --- Global State ---
-      let currentUser = null;
-      let postsListener = null, usersListener = null, chatListener = null, typingListener = null, notificationsListener = null;
-      let currentChatUser = null;
-      let typingTimer = null;
-      let selectedPostFile = null;
-
-      // --- DOM Element Cache ---
-      const DOMElements = {
-        html: document.documentElement,
-        app: document.getElementById('app'),
-        loginModal: document.getElementById('loginModal'),
-        userAvatar: document.getElementById('userAvatar'),
-        sidebarAvatar: document.getElementById('sidebarAvatar'),
-        composerAvatar: document.getElementById('composerAvatar'),
-        profileName: document.getElementById('profileName'),
-        status: document.getElementById('status'),
-        postsContainer: document.getElementById('postsContainer'),
-        postInput: document.getElementById('postInput'),
-        postButton: document.getElementById('postButton'),
-        onlineUsersList: document.getElementById('onlineUsersList'),
-        chatModal: document.getElementById('chatModal'),
-        chatContainer: document.querySelector('.chat-container'),
-        chatHeader: document.querySelector('.chat-header'),
-        chatUserAvatar: document.getElementById('chatUserAvatar'),
-        chatUserName: document.getElementById('chatUserName'),
-        chatUserStatus: document.getElementById('chatUserStatus'),
-        messagesContainer: document.getElementById('messagesContainer'),
-        messagesList: document.getElementById('messagesList'),
-        chatInput: document.getElementById('chatInput'),
-        chatInputForm: document.getElementById('chatInputForm'),
-        typingIndicator: document.getElementById('typingIndicator'),
-        notification: document.getElementById('notification'),
-        themeToggle: document.getElementById('themeToggle'),
-        notificationsToggle: document.getElementById('notificationsToggle'),
-        notificationCount: document.getElementById('notificationCount'),
-        notificationsPanel: document.getElementById('notificationsPanel'),
-        notificationsList: document.getElementById('notificationsList'),
-        imageInput: document.getElementById('imageInput'),
-        imagePreviewContainer: document.getElementById('imagePreviewContainer'),
-        imagePreview: document.getElementById('imagePreview'),
-        removeImageBtn: document.getElementById('removeImageBtn'),
-        pfpInput: document.getElementById('pfpInput'),
-      };
-
-      // --- Utility Functions ---
-      const showToast = (message, type = 'success') => { DOMElements.notification.textContent = message; DOMElements.notification.className = `notification ${type}`; DOMElements.notification.classList.add('show'); setTimeout(() => DOMElements.notification.classList.remove('show'), 3000); };
-      const formatTime = (ts) => { if (!ts?.toDate) return 'a moment ago'; const d = ts.toDate(), now = new Date(), diff = now - d; if (diff < 60000) return 'Just now'; if (diff < 3600000) return `${Math.floor(diff/60000)}m ago`; if (diff < 86400000) return `${Math.floor(diff/3600000)}h ago`; return d.toLocaleDateString('en-US',{day:'numeric',month:'short'}); };
-      const getChatId = (uid1, uid2) => [uid1, uid2].sort().join('_');
-      const applyTheme = (theme) => { DOMElements.html.setAttribute('data-color-scheme', theme); DOMElements.themeToggle.textContent = theme === 'dark' ? '☀️' : '🌙'; localStorage.setItem('theme', theme); };
-      const toggleTheme = () => { applyTheme((DOMElements.html.getAttribute('data-color-scheme') || 'light') === 'dark' ? 'light' : 'dark'); };
-
-      // --- Main App Logic ---
-      const updateUserPresence = async (isOnline) => { if (!currentUser) return; await setDoc(doc(db,'users',currentUser.uid),{presence:{state:isOnline?'online':'offline',last_changed:serverTimestamp()}},{merge:true}); };
-
-      window.createPost = async () => {
-        const content = DOMElements.postInput.value.trim();
-        if (!content && !selectedPostFile) return showToast('Cannot create an empty post.', 'error');
-        
-        DOMElements.postButton.disabled = true;
-        DOMElements.postButton.textContent = 'Posting...';
-
-        let imageUrl = null;
-        if (selectedPostFile) {
-          const imageRef = ref(storage, `posts/${currentUser.uid}_${Date.now()}_${selectedPostFile.name}`);
-          try {
-            const snapshot = await uploadBytes(imageRef, selectedPostFile);
-            imageUrl = await getDownloadURL(snapshot.ref);
-          } catch (error) {
-            console.error("Image upload failed:", error);
-            showToast('Image upload failed. Please try again.', 'error');
-            DOMElements.postButton.disabled = false;
-            DOMElements.postButton.textContent = 'Post';
-            return;
-          }
-        }
-        
-        await addDoc(collection(db,'posts'),{
-            type:'original', 
-            authorId:currentUser.uid, 
-            authorName:currentUser.displayName, 
-            authorAvatar:currentUser.photoURL, 
-            content, 
-            imageUrl,
-            createdAt:serverTimestamp(), 
-            likes:0, 
-            likedBy:[], 
-            commentList:[], 
-            shareCount:0
-        });
-
-        // Reset composer
-        DOMElements.postInput.value='';
-        DOMElements.imageInput.value = '';
-        selectedPostFile = null;
-        DOMElements.imagePreviewContainer.classList.add('hidden');
-        DOMElements.postButton.disabled = false;
-        DOMElements.postButton.textContent = 'Post';
-        showToast('Post created successfully!');
-      };
-
-      const displayPosts = (posts) => {
-        DOMElements.postsContainer.innerHTML = '';
-        if (posts.length === 0) {
-          DOMElements.postsContainer.innerHTML = `<div class="post" style="text-align:center;">No posts yet. Be the first to share something!</div>`;
-          return;
-        }
-        posts.forEach(p => DOMElements.postsContainer.appendChild(createPostElement(p)));
-      };
-      
-      const createPostElement = (post) => {
-        const el = document.createElement('div');
-        el.className = 'post';
-        el.dataset.postId = post.id;
-
-        const imageHTML = post.imageUrl ? `<img src="${post.imageUrl}" class="post-image" alt="Post image">` : '';
-        const contentHTML = post.content ? `<div class="post-content-text">${post.content.replace(/\n/g,'<br>')}</div>` : '';
-
-        el.innerHTML = `
-          <div class="post-header">
-            <div class="post-author-info">
-              <img src="${post.authorAvatar}" class="user-avatar">
-              <div>
-                <div class="post-author">${post.authorName}</div>
-                <div class="post-time">${formatTime(post.createdAt)}</div>
-              </div>
+        <aside class="left-sidebar">
+            <div class="sidebar-section">
+                <div class="sidebar-card card">
+                    <div style="padding: 16px; text-align: center;">
+                        <div style="position: relative; display: inline-block;">
+                            <img id="sidebarAvatar" src="https://via.placeholder.com/64" alt="Profile" class="profile-avatar">
+                            <button id="changeAvatarBtn" class="btn-icon" style="position: absolute; bottom: -5px; right: -5px; width: 24px; height: 24px; font-size: 12px; background: var(--color-primary); color: white;">📷</button>
+                        </div>
+                        <h3 id="profileName">Loading...</h3>
+                        <p id="status" style="color: var(--color-text-secondary); margin: 0;">Setting up profile...</p>
+                    </div>
+                </div>
             </div>
-            ${post.authorId === currentUser?.uid ? `<button class="post-menu" onclick="deletePost('${post.id}')">✕</button>` : ''}
-          </div>
-          <div class="post-content">
-            ${contentHTML}
-            ${imageHTML}
-          </div>
-          <div class="post-stats">
-            <span>${post.likes || 0} Likes</span>
-            <span>${post.commentList?.length || 0} Comments</span>
-          </div>
-          <div class="post-actions">
-            <button class="post-action ${post.likedBy?.includes(currentUser?.uid) ? 'liked' : ''}" onclick="toggleLike('${post.id}')">👍 Like</button>
-            <button class="post-action" onclick="focusCommentInput('${post.id}')">💬 Comment</button>
-          </div>
-          <div class="comments">
-            <div class="comment-list"></div>
-            <form class="comment-form" onsubmit="addComment(event, '${post.id}')">
-              <input class="comment-input" type="text" placeholder="Add a comment...">
-              <button type="submit" class="comment-btn">Post</button>
+
+            <div class="sidebar-section">
+                <h4>Online Users</h4>
+                <div id="onlineUsersList"></div>
+            </div>
+        </aside>
+
+        <main class="main-content">
+            <section class="composer card">
+                <div class="composer-header">
+                    <img id="composerAvatar" src="https://via.placeholder.com/40" alt="You" class="user-avatar">
+                    <textarea id="postInput" placeholder="What's on your mind?" rows="3"></textarea>
+                </div>
+                <div class="composer-actions">
+                    <div class="composer-options">
+                        <button class="btn-icon" title="Add photo">📷</button>
+                        <button class="btn-icon" title="Add emoji">😊</button>
+                    </div>
+                    <button id="postButton" class="btn-primary">Post</button>
+                </div>
+            </section>
+
+            <section id="postsContainer" class="posts-container">
+                <!-- Posts will be dynamically loaded here -->
+            </section>
+        </main>
+
+        <aside class="right-sidebar">
+            <div class="sidebar-section">
+                <h4>Quick Stats</h4>
+                <div class="sidebar-card card" style="padding: 16px;">
+                    <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+                        <span>Your Posts</span>
+                        <span id="userPostCount">0</span>
+                    </div>
+                    <div style="display: flex; justify-content: space-between;">
+                        <span>Total Likes</span>
+                        <span id="userLikeCount">0</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="sidebar-section">
+                <h4>Trending</h4>
+                <div class="sidebar-card card" style="padding: 16px;">
+                    <div style="color: var(--color-text-secondary); font-size: 14px;">
+                        #DeepNetSocial<br>
+                        #TechTalk<br>
+                        #SocialMedia<br>
+                        #Innovation
+                    </div>
+                </div>
+            </div>
+        </aside>
+    </div>
+
+    <!-- Login Modal -->
+    <div id="loginModal" class="modal-backdrop">
+        <div class="modal-content" style="padding: 32px; text-align: center;">
+            <h2 style="margin-bottom: 24px;">Welcome to DeepNet Social</h2>
+            <div id="authForms">
+                <!-- Login Form -->
+                <form id="loginForm" class="auth-form">
+                    <div style="margin-bottom: 16px;">
+                        <input type="email" id="loginEmail" placeholder="Email" required style="width: 100%; padding: 12px; border: 1px solid var(--color-border); border-radius: var(--radius-md);">
+                    </div>
+                    <div style="margin-bottom: 24px;">
+                        <input type="password" id="loginPassword" placeholder="Password" required style="width: 100%; padding: 12px; border: 1px solid var(--color-border); border-radius: var(--radius-md);">
+                    </div>
+                    <button type="submit" class="btn-primary" style="width: 100%; margin-bottom: 16px;">Sign In</button>
+                    <p>Don't have an account? <a href="#" id="showSignup" style="color: var(--color-primary);">Sign up</a></p>
+                </form>
+
+                <!-- Signup Form -->
+                <form id="signupForm" class="auth-form hidden">
+                    <div style="margin-bottom: 16px;">
+                        <input type="text" id="signupName" placeholder="Full Name" required style="width: 100%; padding: 12px; border: 1px solid var(--color-border); border-radius: var(--radius-md);">
+                    </div>
+                    <div style="margin-bottom: 16px;">
+                        <input type="email" id="signupEmail" placeholder="Email" required style="width: 100%; padding: 12px; border: 1px solid var(--color-border); border-radius: var(--radius-md);">
+                    </div>
+                    <div style="margin-bottom: 24px;">
+                        <input type="password" id="signupPassword" placeholder="Password (min 6 characters)" required minlength="6" style="width: 100%; padding: 12px; border: 1px solid var(--color-border); border-radius: var(--radius-md);">
+                    </div>
+                    <button type="submit" class="btn-primary" style="width: 100%; margin-bottom: 16px;">Create Account</button>
+                    <p>Already have an account? <a href="#" id="showLogin" style="color: var(--color-primary);">Sign in</a></p>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Chat Modal -->
+    <div id="chatModal" class="chat-modal hidden">
+        <div class="chat-container">
+            <div class="chat-header" style="display: flex; align-items: center; justify-content: space-between; padding: 12px 16px; border-radius: var(--radius-lg) var(--radius-lg) 0 0;">
+                <div style="display: flex; align-items: center; gap: 12px;">
+                    <img id="chatUserAvatar" src="https://via.placeholder.com/32" alt="User" style="width: 32px; height: 32px; border-radius: 50%;">
+                    <div>
+                        <div id="chatUserName" style="font-weight: 600; font-size: 14px;">User Name</div>
+                        <div id="chatUserStatus" style="font-size: 12px; opacity: 0.9;">Online</div>
+                    </div>
+                </div>
+                <button id="closeChatBtn" class="btn-icon chat-close" style="color: white;">✕</button>
+            </div>
+
+            <div id="messagesContainer" class="messages-container" style="flex: 1; overflow-y: auto; padding: 16px; background: var(--color-background);">
+                <div id="messagesList"></div>
+                <div id="typingIndicator" class="typing-indicator hidden" style="display: flex; align-items: center; gap: 8px; padding: 8px; font-size: 12px; color: var(--color-text-secondary);">
+                    <span id="typingUserName">Someone</span> is typing...
+                    <div class="typing-dots">
+                        <span></span><span></span><span></span>
+                    </div>
+                </div>
+            </div>
+
+            <form id="chatInputForm" class="chat-input-form" style="padding: 12px 16px; border-top: 1px solid var(--color-border); display: flex; gap: 8px;">
+                <input type="file" id="chatImageInput" accept="image/*" style="display: none;">
+                <button type="button" id="chatImageBtn" class="btn-icon" title="Send Image">📷</button>
+                <input type="text" id="chatInput" placeholder="Type a message..." style="flex: 1; padding: 8px 12px; border: 1px solid var(--color-border); border-radius: var(--radius-md); background: var(--color-surface);" autocomplete="off">
+                <button type="submit" class="btn-primary" style="padding: 8px 16px;">Send</button>
             </form>
-          </div>
-        `;
-        renderComments(el, post.commentList);
-        return el;
-      };
+        </div>
+    </div>
 
-      const renderComments = (postEl, comments = []) => {
-        const listEl = postEl.querySelector('.comment-list');
-        listEl.innerHTML = '';
-        comments.forEach(c => {
-          const item = document.createElement('div');
-          item.className = 'comment-item';
-          item.innerHTML = `
-            <img src="${c.avatar}" class="comment-avatar">
-            <div>
-              <div class="comment-body"><strong>${c.author}</strong> ${c.text}</div>
-              <div class="comment-meta">${formatTime(c.createdAt)}</div>
-            </div>`;
-          listEl.appendChild(item);
-        });
-      };
-      
-      const handleProfilePictureUpload = async (e) => {
-        const file = e.target.files[0];
-        if (!file) return;
+    <!-- Profile Picture Upload Modal -->
+    <div id="avatarModal" class="modal-backdrop hidden">
+        <div class="modal-content" style="padding: 24px;">
+            <h3 style="margin-bottom: 16px;">Update Profile Picture</h3>
+            <input type="file" id="avatarInput" accept="image/*" style="margin-bottom: 16px; width: 100%;">
+            <div style="display: flex; gap: 12px; justify-content: flex-end;">
+                <button id="cancelAvatarBtn" class="btn-secondary">Cancel</button>
+                <button id="uploadAvatarBtn" class="btn-primary">Upload</button>
+            </div>
+        </div>
+    </div>
 
-        showToast('Uploading profile picture...', 'info');
-        const pfpRef = ref(storage, `profile-pictures/${currentUser.uid}`);
-        try {
-            const snapshot = await uploadBytes(pfpRef, file);
-            const downloadURL = await getDownloadURL(snapshot.ref);
+    <!-- Toast Notification -->
+    <div id="notification" class="toast-notification"></div>
 
-            // Update Auth profile
-            await updateProfile(auth.currentUser, { photoURL: downloadURL });
-            
-            // Update Firestore user document
-            await updateDoc(doc(db, 'users', currentUser.uid), { photoURL: downloadURL });
-            
-            // Update local state
-            currentUser.photoURL = downloadURL;
-            [DOMElements.userAvatar, DOMElements.sidebarAvatar, DOMElements.composerAvatar].forEach(el => el.src = downloadURL);
-            
-            showToast('Profile picture updated!');
-        } catch (error) {
-            console.error("Profile picture upload failed:", error);
-            showToast('Upload failed. Please try again.', 'error');
-        }
-      };
-
-      // --- Event Listeners & Auth State ---
-      onAuthStateChanged(auth, async (user) => {
-        if (user && user.emailVerified) {
-          const userDoc = await getDoc(doc(db, 'users', user.uid));
-          
-          currentUser = {
-            uid: user.uid,
-            displayName: user.displayName,
-            email: user.email,
-            photoURL: user.photoURL || `https://placehold.co/40x40/EFEFEF/333333?text=${user.displayName?.[0] || 'U'}`
-          };
-          
-          if (!userDoc.exists()) {
-             await setDoc(doc(db, 'users', user.uid), {
-                uid: currentUser.uid,
-                displayName: currentUser.displayName,
-                email: currentUser.email,
-                photoURL: currentUser.photoURL,
-             });
-          }
-
-          DOMElements.app.classList.remove('hidden');
-          DOMElements.loginModal.classList.add('hidden');
-          [DOMElements.userAvatar, DOMElements.sidebarAvatar, DOMElements.composerAvatar].forEach(el => el.src = currentUser.photoURL);
-          DOMElements.profileName.textContent = currentUser.displayName;
-          
-          await updateUserPresence(true);
-          
-          // Start listeners
-          if (postsListener) postsListener();
-          const qp = query(collection(db, 'posts'), orderBy('createdAt', 'desc'));
-          postsListener = onSnapshot(qp, s => displayPosts(s.docs.map(d => ({id: d.id, ...d.data()}))));
-          
-          if (usersListener) usersListener();
-          const qu = query(collection(db, 'users'));
-          usersListener = onSnapshot(qu, s => {
-            const onlineUsers = s.docs.map(d => d.data()).filter(u => u.uid !== currentUser?.uid);
-            DOMElements.onlineUsersList.innerHTML = '';
-            onlineUsers.forEach(u => {
-                const el = document.createElement('div');
-                el.className = 'online-user-item';
-                el.onclick = () => openChat(u);
-                el.innerHTML = `<div class="online-user-avatar"><img src="${u.photoURL}" class="user-avatar" alt="${u.displayName}"><div class="online-indicator" style="display:${u.presence?.state === 'online' ? 'block' : 'none'}"></div></div><span class="online-user-name">${u.displayName}</span>`;
-                DOMElements.onlineUsersList.appendChild(el);
-            });
-          });
-
-        } else {
-          currentUser = null;
-          DOMElements.app.classList.add('hidden');
-          DOMElements.loginModal.classList.remove('hidden');
-          
-          if (postsListener) postsListener();
-          if (usersListener) usersListener();
-        }
-      });
-      
-      const setupAuthEventListeners = () => {
-        document.getElementById('loginTab').addEventListener('click', () => switchAuthTab('login'));
-        document.getElementById('signupTab').addEventListener('click', () => switchAuthTab('signup'));
-        document.getElementById('logoutBtn').addEventListener('click', async () => { await updateUserPresence(false); await signOut(auth); });
-        
-        document.getElementById('loginForm').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const { email, password } = Object.fromEntries(new FormData(e.target));
-            try {
-                const creds = await signInWithEmailAndPassword(auth, email, password);
-                if (!creds.user.emailVerified) {
-                    await signOut(auth);
-                    showToast('Please verify your email first.', 'error');
-                }
-            } catch (err) {
-                showToast(err.message, 'error');
-            }
-        });
-
-        document.getElementById('signupForm').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const { displayName, email, password } = Object.fromEntries(new FormData(e.target));
-            try {
-                const creds = await createUserWithEmailAndPassword(auth, email, password);
-                await updateProfile(creds.user, { displayName });
-                await sendEmailVerification(creds.user);
-                await signOut(auth);
-                showToast('Account created! Please check your email to verify.', 'info');
-            } catch (err) {
-                showToast(err.message, 'error');
-            }
-        });
-      };
-      
-      const switchAuthTab = (tab) => {
-        document.getElementById('loginForm').classList.toggle('hidden', tab !== 'login');
-        document.getElementById('signupForm').classList.toggle('hidden', tab === 'login');
-        document.getElementById('loginTab').classList.toggle('active', tab === 'login');
-        document.getElementById('signupTab').classList.toggle('active', tab !== 'login');
-      };
-
-      // General Event Listeners
-      setupAuthEventListeners();
-      applyTheme(localStorage.getItem('theme') || 'light');
-      DOMElements.themeToggle.addEventListener('click', toggleTheme);
-      DOMElements.postButton.addEventListener('click', window.createPost);
-      DOMElements.pfpInput.addEventListener('change', handleProfilePictureUpload);
-      window.addEventListener('beforeunload', () => { if (auth.currentUser) { updateUserPresence(false); } });
-
-      DOMElements.imageInput.addEventListener('change', (e) => {
-        if (e.target.files && e.target.files[0]) {
-            selectedPostFile = e.target.files[0];
-            const reader = new FileReader();
-            reader.onload = (event) => {
-                DOMElements.imagePreview.src = event.target.result;
-                DOMElements.imagePreviewContainer.classList.remove('hidden');
-            }
-            reader.readAsDataURL(selectedPostFile);
-        }
-      });
-
-      DOMElements.removeImageBtn.addEventListener('click', () => {
-        selectedPostFile = null;
-        DOMElements.imageInput.value = '';
-        DOMElements.imagePreview.src = '';
-        DOMElements.imagePreviewContainer.classList.add('hidden');
-      });
-      
-      // Global functions for inline HTML event handlers
-      window.deletePost = async(id) => { if(confirm('Are you sure you want to delete this post?')){ await deleteDoc(doc(db, "posts", id)); showToast('Post deleted.'); } };
-      window.toggleLike = async(id) => { const ref = doc(db, 'posts', id); const snap = await getDoc(ref); if (!snap.exists()) return; const data = snap.data(); if (data.likedBy?.includes(currentUser.uid)) { await updateDoc(ref, { likedBy: arrayRemove(currentUser.uid), likes: increment(-1) }) } else { await updateDoc(ref, { likedBy: arrayUnion(currentUser.uid), likes: increment(1) }); } };
-      window.focusCommentInput = (id) => document.querySelector(`[data-post-id="${id}"] .comment-input`).focus();
-      window.addComment = async(e, id) => { e.preventDefault(); const input = e.target.querySelector('.comment-input'); const text = input.value.trim(); if (!text) return; const c = { id: doc(collection(db,'tmp')).id, userId: currentUser.uid, author: currentUser.displayName, avatar: currentUser.photoURL, text, createdAt: new Date() }; await updateDoc(doc(db, 'posts', id), { commentList: arrayUnion(c) }); input.value = ''; };
-
-    });
-  </script>
+    <script type="module" src="app.js"></script>
 </body>
 </html>
-
