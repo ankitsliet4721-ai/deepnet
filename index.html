@@ -1,111 +1,13 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-color-scheme="light">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>DeepNet Social - AI Research Community</title>
-  <style>
-    * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif; background-color: #18191a; color: #e4e6ea; line-height: 1.34; }
-    
-    /* Modal Styles */
-    .login-modal { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); display: flex; align-items: center; justify-content: center; z-index: 2000; }
-    .modal-content { background: #242526; border-radius: 12px; width: 100%; max-width: 480px; box-shadow: 0 8px 24px rgba(0,0,0,0.5); overflow: hidden; }
-    .modal-header { padding: 20px; border-bottom: 1px solid #3a3b3c; }
-    .modal-header h2 { font-size: 22px; margin-bottom: 6px; }
-    .modal-header p { color: #b0b3b8; font-size: 14px; }
-    .auth-tabs { display: flex; }
-    .auth-tabs button { flex: 1; padding: 12px 0; border: none; background: transparent; color: #b0b3b8; cursor: pointer; font-weight: 600; border-bottom: 2px solid transparent; }
-    .auth-tabs .active { color: #e4e6ea; border-color: #2e89ff; }
-    .auth-form { padding: 20px; }
-    .auth-form .input-group { display: grid; gap: 12px; margin-bottom: 12px; }
-    .auth-form input { width: 100%; padding: 12px 14px; border-radius: 8px; border: 1px solid #3a3b3c; background: #18191a; color: #e4e6ea; }
-    .auth-message { margin-top: 8px; font-size: 13px; color: #b0b3b8; }
-    .auth-message.success { color: #31a24c; }
-    .auth-message.error { color: #f23d4f; }
-    .btn-primary { background: #2e89ff; color: #fff; border: none; padding: 10px 16px; border-radius: 8px; cursor: pointer; font-weight: 600; }
-    .btn-primary:disabled { background: #385898; opacity: 0.6; cursor: not-allowed; }
-    .hidden { display: none !important; }
-
-    /* Layout */
-    .app-container { display: grid; grid-template-columns: 280px 1fr 320px; gap: 16px; padding: 16px; max-width: 1300px; margin: 0 auto; }
-    header { grid-column: 1 / -1; display: flex; align-items: center; justify-content: space-between; padding: 12px 16px; background: #242526; border-radius: 10px; position: sticky; top: 0; z-index: 100; }
-    .logo { display: flex; align-items: center; gap: 10px; font-weight: 800; }
-    .logo .logo-icon { font-size: 20px; }
-    .header-nav { display: flex; gap: 12px; }
-    .nav-link { color: #b0b3b8; text-decoration: none; padding: 8px 12px; border-radius: 8px; }
-    .nav-link.active, .nav-link:hover { background: #3a3b3c; color: #e4e6ea; }
-    .btn-icon { background: transparent; border: none; color: #e4e6ea; font-size: 18px; cursor: pointer; }
-    .user-menu { display: flex; align-items: center; gap: 12px; }
-    .user-avatar, .profile-avatar { width: 36px; height: 36px; border-radius: 50%; object-fit: cover; }
-
-    /* Sidebars */
-    .left-sidebar, .right-sidebar { display: grid; gap: 12px; }
-    .sidebar-section, .sidebar-card { background: #242526; border-radius: 10px; padding: 14px; }
-    .profile-card { display: grid; place-items: center; gap: 8px; }
-    .status { font-size: 13px; color: #b0b3b8; }
-
-    .online-users-list { display: grid; gap: 6px; }
-    .online-user-item { display: flex; align-items: center; gap: 10px; padding: 8px; border-radius: 8px; cursor: pointer; }
-    .online-user-item:hover { background: #3a3b3c; }
-    .online-user-avatar { position: relative; }
-    .online-indicator { position: absolute; bottom: -1px; right: -1px; width: 10px; height: 10px; background: #31a24c; border: 2px solid #242526; border-radius: 50%; }
-    .online-user-name { font-size: 14px; }
-
-    /* Posts */
-    .composer, .card, .suggestions, .stats { background: #242526; border-radius: 10px; }
-    .composer { padding: 12px; }
-    .composer-header { display: flex; gap: 10px; }
-    .composer-header textarea { flex: 1; min-height: 70px; background: #18191a; color: #e4e6ea; border: 1px solid #3a3b3c; border-radius: 8px; padding: 10px; }
-    .composer-actions { display: flex; align-items: center; justify-content: space-between; padding-top: 8px; }
-    .option-btn { background: transparent; border: none; color: #b0b3b8; cursor: pointer; }
-    .posts-container { display: grid; gap: 12px; }
-    .post { padding: 12px; }
-
-    /* Chat Modal */
-    .chat-modal { position: fixed; inset: 0; background: rgba(0,0,0,0.6); display: flex; align-items: center; justify-content: center; z-index: 1500; }
-    .chat-container { background: #242526; border-radius: 12px; width: 95%; max-width: 520px; height: 600px; display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 10px 30px rgba(0,0,0,0.6); }
-    .chat-header { display: flex; align-items: center; justify-content: space-between; padding: 12px 14px; background: #2e89ff; color: white; }
-    .chat-user-info { display: flex; align-items: center; gap: 10px; }
-    .chat-user-avatar { width: 40px; height: 40px; border-radius: 50%; object-fit: cover; }
-    .chat-user-status { font-size: 12px; opacity: 0.9; }
-    .chat-close { background: transparent; border: none; color: white; font-size: 22px; cursor: pointer; padding: 4px 8px; border-radius: 8px; }
-    .chat-close:hover { background: rgba(255,255,255,0.2); }
-
-    .messages-container { flex: 1; overflow-y: auto; padding: 14px; display: flex; flex-direction: column; gap: 8px; background: #18191a; }
-    .message { display: flex; flex-direction: column; gap: 6px; }
-    .message.sent { align-items: flex-end; }
-    .message.received { align-items: flex-start; }
-    .message-bubble { max-width: 80%; padding: 8px 12px; border-radius: 12px; line-height: 1.35; }
-    .message.sent .message-bubble { background: #2e89ff; color: white; border-bottom-right-radius: 6px; }
-    .message.received .message-bubble { background: #3a3b3c; color: #e4e6ea; border-bottom-left-radius: 6px; }
-    .message-timestamp { font-size: 11px; color: #b0b3b8; }
-
-    .typing-indicator { display: flex; align-items: center; gap: 8px; padding: 6px 10px; color: #b0b3b8; font-size: 13px; }
-    .typing-dots { display: inline-flex; gap: 2px; }
-    .typing-dot { width: 4px; height: 4px; background: #b0b3b8; border-radius: 50%; animation: typing 1.2s infinite ease-in-out; }
-    .typing-dot:nth-child(2) { animation-delay: .15s; }
-    .typing-dot:nth-child(3) { animation-delay: .3s; }
-    @keyframes typing { 0%, 60%, 100% { transform: translateY(0); opacity: .3 } 30% { transform: translateY(-6px); opacity: 1 } }
-
-    .chat-input-form { display: flex; gap: 8px; padding: 12px; border-top: 1px solid #3a3b3c; background: #242526; }
-    .chat-input { flex: 1; padding: 10px 12px; border: 1px solid #3a3b3c; border-radius: 10px; background: #18191a; color: #e4e6ea; }
-    .chat-send { background: #2e89ff; color: white; border: none; border-radius: 10px; padding: 10px 14px; cursor: pointer; font-weight: 700; }
-
-    /* Notifications */
-    .notification { position: fixed; top: 80px; right: 20px; background: #1877f2; color: #fff; padding: 12px 20px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.3); z-index: 2500; opacity: 0; transform: translateX(100%); transition: all .3s ease; pointer-events: none; font-weight: 600; }
-    .notification.show { opacity: 1; transform: translateX(0); pointer-events: auto; }
-    .notification.error { background: #e74c3c; }
-
-    @media (max-width: 1024px) {
-      .app-container { grid-template-columns: 1fr; }
-      .right-sidebar { display: none; }
-      .left-sidebar { order: 2; }
-      .main-content { order: 1; }
-    }
-  </style>
+  <link rel="stylesheet" href="style.css">
 </head>
 <body>
+
   <!-- Login Modal -->
   <div id="loginModal" class="login-modal hidden">
     <div class="modal-content">
@@ -113,98 +15,83 @@
         <h2>🧠 DeepNet Social</h2>
         <p>Connect with AI researchers worldwide</p>
       </div>
-
       <div class="auth-tabs">
         <button id="loginTab" class="active">Login</button>
         <button id="signupTab">Sign Up</button>
       </div>
-
       <form id="loginForm" class="auth-form">
         <div class="input-group">
-          <input type="email" name="email" id="loginEmail" placeholder="Email" required autocomplete="email">
-          <input type="password" name="password" id="loginPassword" placeholder="Password" required autocomplete="current-password">
+          <input type="email" name="email" placeholder="Email address" required>
+          <input type="password" name="password" placeholder="Password" required>
         </div>
-        <button type="submit" class="btn-primary">Log In</button>
+        <button type="submit" class="btn-primary" style="width:100%">Log In</button>
         <div id="loginMessage" class="auth-message"></div>
       </form>
-
       <form id="signupForm" class="auth-form hidden">
         <div class="input-group">
-          <input type="email" name="email" id="signupEmail" placeholder="Email" required autocomplete="email">
-          <input type="password" name="password" id="signupPassword" placeholder="Create password" minlength="6" required autocomplete="new-password">
+          <input type="email" name="email" placeholder="Email address" required>
+          <input type="password" name="password" placeholder="Create password" minlength="6" required>
         </div>
-        <button type="submit" class="btn-primary">Sign Up</button>
+        <button type="submit" class="btn-primary" style="width:100%">Sign Up</button>
         <div id="signupMessage" class="auth-message"></div>
       </form>
     </div>
   </div>
 
-  <!-- Main App -->
+  <!-- Main Application -->
   <div id="app" class="app-container hidden">
     <header>
-      <div class="logo"><span class="logo-icon">🧠</span> DeepNet Social</div>
+      <a href="#" class="logo">
+        <span class="logo-icon">🧠</span> DeepNet Social
+      </a>
       <nav class="header-nav">
-        <a class="nav-link active" href="#">Home</a>
-        <a class="nav-link" href="#">Research</a>
-        <a class="nav-link" href="#">Communities</a>
-        <a class="nav-link" href="#">Messages</a>
+        <a href="#" class="nav-link active">Home</a>
+        <a href="#" class="nav-link">Research</a>
+        <a href="#" class="nav-link">Messages</a>
       </nav>
       <div class="user-menu">
         <button class="btn-icon" title="Notifications">🔔</button>
-        <img id="userAvatar" class="user-avatar" alt="User">
+        <img id="userAvatar" class="user-avatar" alt="User Avatar">
         <button id="logoutBtn" class="btn-primary">Logout</button>
       </div>
     </header>
 
     <aside class="left-sidebar">
       <div class="sidebar-section profile-card">
-        <img id="sidebarAvatar" class="profile-avatar" alt="Avatar">
+        <img id="sidebarAvatar" class="profile-avatar" alt="Profile Avatar">
         <h3 id="profileName">User Name</h3>
-        <p id="status" class="status">🔄 Connecting...</p>
+        <p id="status" class="status">Connecting...</p>
       </div>
-
       <div class="sidebar-section">
-        <h4>👥 Users</h4>
+        <h4>👥 Online Users</h4>
         <div id="onlineUsersList" class="online-users-list"></div>
-      </div>
-
-      <div class="sidebar-section">
-        <h4>AI Communities</h4>
-        <ul>
-          <li>MachineLearning</li>
-          <li>NeurIPS2025</li>
-          <li>ComputerVision</li>
-          <li>NLP</li>
-          <li>DeepLearning</li>
-        </ul>
       </div>
     </aside>
 
     <main class="main-content">
-      <div class="composer card">
+      <div class="composer">
         <div class="composer-header">
-          <img id="composerAvatar" class="user-avatar" alt="Avatar">
+          <img id="composerAvatar" class="user-avatar" alt="Your Avatar">
           <textarea id="postInput" placeholder="Share your research insights..."></textarea>
         </div>
         <div class="composer-actions">
           <div>
-            <button class="option-btn">📝 Text</button>
-            <button class="option-btn">💻 Code</button>
             <button class="option-btn">📄 Paper</button>
-            <button class="option-btn">📊 Poll</button>
+            <button class="option-btn">💻 Code</button>
           </div>
           <button id="postButton" class="btn-primary">Post</button>
         </div>
       </div>
-
       <div id="postsContainer" class="posts-container"></div>
     </main>
 
     <aside class="right-sidebar">
-      <div class="sidebar-card"><h3>Trending in AI</h3></div>
-      <div class="sidebar-card"><h3>Suggested Connections</h3></div>
-      <div class="sidebar-card"><h3>Research Analytics</h3></div>
-      <div class="sidebar-card"><button id="chatToggle" class="btn-primary" style="width:100%">💬 Chat</button></div>
+      <div class="sidebar-card">
+        <h3>Trending in AI</h3>
+      </div>
+      <div class="sidebar-card">
+        <h3>Suggested Connections</h3>
+      </div>
     </aside>
   </div>
 
@@ -213,7 +100,7 @@
     <div class="chat-container">
       <div class="chat-header">
         <div class="chat-user-info">
-          <img id="chatUserAvatar" class="chat-user-avatar" alt="User">
+          <img id="chatUserAvatar" class="chat-user-avatar" alt="Chat User">
           <div>
             <h3 id="chatUserName">User Name</h3>
             <p id="chatUserStatus" class="chat-user-status">Offline</p>
@@ -221,11 +108,10 @@
         </div>
         <button id="closeChatModal" class="chat-close">&times;</button>
       </div>
-
       <div id="messagesContainer" class="messages-container">
-        <div id="messagesList" class="messages-list"></div>
+        <div id="messagesList"></div>
         <div id="typingIndicator" class="typing-indicator hidden">
-          <span id="typingUserName">User</span>
+          <span id="typingUserName">User</span>&nbsp;is typing
           <div class="typing-dots">
             <div class="typing-dot"></div>
             <div class="typing-dot"></div>
@@ -233,130 +119,16 @@
           </div>
         </div>
       </div>
-
       <form id="chatInputForm" class="chat-input-form">
         <input id="chatInput" class="chat-input" type="text" placeholder="Type a message..." autocomplete="off">
         <button class="chat-send" type="submit">Send</button>
       </form>
     </div>
   </div>
-
-  <script type="module">
-    // Firebase Imports
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-app.js";
-    import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, onAuthStateChanged, signOut, sendEmailVerification } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-auth.js";
-    import { getFirestore, collection, addDoc, doc, getDoc, deleteDoc, updateDoc, query, orderBy, onSnapshot, serverTimestamp, arrayUnion, arrayRemove, increment, setDoc, where, limit, getDocs } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-firestore.js";
-
-    const firebaseConfig = { apiKey: "AIzaSyALLWz-xkvroabNu_ug6ZVdDEmNF3O2eJs", authDomain: "deep-9656b.firebaseapp.com", projectId: "deep-9656b", storageBucket: "deep-9656b.firebasestorage.app", messagingSenderId: "786248126233", appId: "1:786248126233:web:be8ebed2a68281204eff88", measurementId: "G-FWC45EBFFP" };
-    const app = initializeApp(firebaseConfig);
-    const auth = getAuth(app);
-    const db = getFirestore(app);
-
-    // --- Globals ---
-    let currentUser = null; let postsListenerUnsubscribe = null; let onlineUsersListener = null; let currentChatUser = null; let messagesListener = null; let typingTimer = null;
-
-    // --- DOM ---
-    const loginModal = document.getElementById('loginModal');
-    const appDiv = document.getElementById('app');
-    const userAvatar = document.getElementById('userAvatar');
-    const sidebarAvatar = document.getElementById('sidebarAvatar');
-    const composerAvatar = document.getElementById('composerAvatar');
-    const profileName = document.getElementById('profileName');
-    const status = document.getElementById('status');
-    const postsContainer = document.getElementById('postsContainer');
-    const postInput = document.getElementById('postInput');
-    const postButton = document.getElementById('postButton');
-    const onlineUsersList = document.getElementById('onlineUsersList');
-    const chatModal = document.getElementById('chatModal');
-    const chatUserAvatar = document.getElementById('chatUserAvatar');
-    const chatUserName = document.getElementById('chatUserName');
-    const chatUserStatus = document.getElementById('chatUserStatus');
-    const messagesList = document.getElementById('messagesList');
-    const chatInput = document.getElementById('chatInput');
-    const chatInputForm = document.getElementById('chatInputForm');
-    const typingIndicator = document.getElementById('typingIndicator');
-
-    // --- Utils ---
-    function showNotification(message, type = 'success') {
-      const notification = document.getElementById('notification');
-      if (!notification) return;
-      notification.textContent = message;
-      notification.className = `notification ${type}`;
-      notification.classList.add('show');
-      setTimeout(() => notification.classList.remove('show'), 3000);
-    }
-
-    function updateStatus(message, type = 'online') { if (status){ status.textContent = message; status.className = `status ${type}`; } }
-
-    function formatTime(ts){ if(!ts?.toDate) return ''; const d=ts.toDate(); const now=new Date(); if(now.toDateString()===d.toDateString()) return d.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}); return d.toLocaleDateString()+' '+d.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}); }
-
-    function getChatId(a,b){ return [a,b].sort().join('_'); }
-
-    // --- Presence ---
-    async function updateUserPresence(isOnline){ if(!currentUser) return; try{ await setDoc(doc(db,'users', currentUser.uid), { uid: currentUser.uid, displayName: currentUser.displayName || currentUser.email.split('@')[0], email: currentUser.email, presence: { state: isOnline? 'online':'offline', last_changed: serverTimestamp() } }, { merge:true }); }catch(e){ console.error('presence', e); } }
-
-    function listenForOnlineUsers(){ if(onlineUsersListener) onlineUsersListener(); const qUsers = query(collection(db,'users')); onlineUsersListener = onSnapshot(qUsers, snap=>{ const users = snap.docs.map(d=>d.data()).filter(u=>u.uid!==currentUser?.uid); renderOnlineUsers(users); }, err=>console.error('presence listen', err)); }
-
-    function renderOnlineUsers(users){ if(!onlineUsersList) return; onlineUsersList.innerHTML=''; if(users.length===0){ onlineUsersList.innerHTML='<div class="status">No other users found.</div>'; return; } users.forEach(u=>{ const el=document.createElement('div'); el.className='online-user-item'; el.title = (u.presence?.state==='online')? 'Online':'Offline'; el.onclick=()=>openChat(u); el.innerHTML=`<div class="online-user-avatar"><img src="${u.photoURL||`https://i.pravatar.cc/40?u=${u.uid}`}" class="user-avatar"><${u.presence?.state==='online' ? 'div class="online-indicator"':''}></div><span class="online-user-name">${u.displayName||u.email}</span>`; onlineUsersList.appendChild(el); }); }
-
-    // --- Chat ---
-    function openChat(user){ currentChatUser = user; chatUserAvatar.src = user.photoURL || `https://i.pravatar.cc/40?u=${user.uid}`; chatUserName.textContent = user.displayName || user.email; chatUserStatus.textContent = (user.presence?.state==='online')? 'Online':'Offline'; chatModal.classList.remove('hidden'); chatInput.value=''; chatInput.focus(); if(messagesListener) messagesListener(); const chatId=getChatId(currentUser.uid, user.uid); const messagesRef = collection(db,'chats', chatId, 'messages'); const messagesQuery = query(messagesRef, orderBy('timestamp','asc')); messagesListener = onSnapshot(messagesQuery, snap=>{ snap.docChanges().forEach(ch=>{ if(ch.type==='added'){ const msg=ch.doc.data(); if(msg.senderId!==currentUser.uid){ showNotification(`New message from ${currentChatUser.displayName||'a user'}`); } } }); const messages = snap.docs.map(d=>({id:d.id, ...d.data()})); renderMessages(messages); }); }
-
-    function closeChat(){ chatModal.classList.add('hidden'); if(messagesListener) messagesListener(); currentChatUser=null; messagesList.innerHTML=''; }
-
-    function renderMessages(msgs){ messagesList.innerHTML=''; msgs.forEach(m=>{ const d=document.createElement('div'); d.className = `message ${m.senderId===currentUser.uid? 'sent':'received'}`; const b=document.createElement('div'); b.className='message-bubble'; b.textContent=m.text; const t=document.createElement('div'); t.className='message-timestamp'; t.textContent = formatTime(m.timestamp); d.appendChild(b); d.appendChild(t); messagesList.appendChild(d); }); messagesList.scrollTop = messagesList.scrollHeight; }
-
-    async function sendMessage(){ const text = chatInput.value.trim(); if(!text || !currentChatUser) return; const chatId=getChatId(currentUser.uid, currentChatUser.uid); try{ // ensure chat doc and update lastMessage + typing structure
-      await setDoc(doc(db,'chats', chatId), { participants: [currentUser.uid, currentChatUser.uid], participantInfo: { [currentUser.uid]: { displayName: currentUser.displayName || currentUser.email.split('@')[0] }, [currentChatUser.uid]: { displayName: currentChatUser.displayName || currentChatUser.email?.split('@')[0] || 'User' } }, lastMessage: { text, senderId: currentUser.uid, timestamp: serverTimestamp() }, typing: { [currentUser.uid]: false, [currentChatUser.uid]: false } }, { merge:true });
-      await addDoc(collection(db,`chats/${chatId}/messages`), { text, senderId: currentUser.uid, timestamp: serverTimestamp() }); chatInput.value=''; stopTyping(); }catch(e){ console.error('sendMessage', e); showNotification('Error sending message','error'); } }
-
-    function handleTyping(){ clearTimeout(typingTimer); typingTimer = setTimeout(stopTyping, 1500); // update typing true
-      if(currentChatUser){ const chatId=getChatId(currentUser.uid, currentChatUser.uid); updateDoc(doc(db,'chats', chatId), { [`typing.${currentUser.uid}`]: true }).catch(()=>{}); } }
-    function stopTyping(){ clearTimeout(typingTimer); if(currentChatUser){ const chatId=getChatId(currentUser.uid, currentChatUser.uid); updateDoc(doc(db,'chats', chatId), { [`typing.${currentUser.uid}`]: false }).catch(()=>{}); } }
-
-    // --- Auth Forms ---
-    function setupAuthEventListeners(){ const loginForm=document.getElementById('loginForm'); const signupForm=document.getElementById('signupForm'); const loginTab=document.getElementById('loginTab'); const signupTab=document.getElementById('signupTab'); if(loginTab) loginTab.onclick=(e)=>{ e.preventDefault(); switchAuthTab('login'); }; if(signupTab) signupTab.onclick=(e)=>{ e.preventDefault(); switchAuthTab('signup'); };
-      if(loginForm) loginForm.onsubmit = async (e)=>{ e.preventDefault(); const fd=new FormData(e.target); const email=fd.get('email'); const password=fd.get('password'); const msg=document.getElementById('loginMessage'); if(!email||!password){ msg.className='auth-message error'; msg.textContent='❌ Please fill in all fields'; return; } try{ msg.className='auth-message'; msg.textContent='Logging in...'; const cred=await signInWithEmailAndPassword(auth, email, password); if(cred.user.emailVerified){ msg.className='auth-message success'; msg.textContent='✅ Login successful!'; e.target.reset(); } else { await signOut(auth); msg.className='auth-message error'; msg.textContent='❌ Please verify your email first. A new verification link has been sent.'; await sendEmailVerification(cred.user); } }catch(err){ msg.className='auth-message error'; msg.textContent=`❌ ${err.message}`; } };
-      if(signupForm) signupForm.onsubmit = async (e)=>{ e.preventDefault(); const fd=new FormData(e.target); const email=fd.get('email'); const password=fd.get('password'); const msg=document.getElementById('signupMessage'); if(!email||!password){ msg.className='auth-message error'; msg.textContent='❌ Please fill in all fields'; return; } if(password.length<6){ msg.className='auth-message error'; msg.textContent='❌ Password must be at least 6 characters'; return; } try{ msg.className='auth-message'; msg.textContent='Creating account...'; const cred=await createUserWithEmailAndPassword(auth, email, password); await sendEmailVerification(cred.user); await signOut(auth); msg.className='auth-message success'; msg.textContent='✅ Account created! Please verify your email before logging in.'; e.target.reset(); setTimeout(()=>switchAuthTab('login'), 1500); }catch(err){ msg.className='auth-message error'; msg.textContent=`❌ ${err.message}`; } };
-    }
-
-    function switchAuthTab(tab){ const loginForm=document.getElementById('loginForm'); const signupForm=document.getElementById('signupForm'); const loginTab=document.getElementById('loginTab'); const signupTab=document.getElementById('signupTab'); if(tab==='login'){ loginForm.classList.remove('hidden'); signupForm.classList.add('hidden'); loginTab.classList.add('active'); signupTab.classList.remove('active'); } else { loginForm.classList.add('hidden'); signupForm.classList.remove('hidden'); loginTab.classList.remove('active'); signupTab.classList.add('active'); } document.getElementById('loginMessage').textContent=''; document.getElementById('signupMessage').textContent=''; }
-
-    async function handleLogout(){ try{ if(currentUser) await updateUserPresence(false); await signOut(auth); showNotification('Logged out successfully'); }catch(e){ showNotification('Error logging out','error'); } }
-
-    // --- Posts ---
-    function setupPostEventListeners(){ if(postButton) postButton.onclick=(e)=>{ e.preventDefault(); createPost(); }; if(postInput) postInput.onkeypress=(e)=>{ if(e.key==='Enter'&&!e.shiftKey){ e.preventDefault(); createPost(); } }; }
-
-    async function createPost(){ const content = postInput.value.trim(); if(!content) return; if(!currentUser) return showNotification('Please log in to post!','error'); postButton.disabled=true; try { await addDoc(collection(db,'posts'), { type:'original', content, authorId: currentUser.uid, authorName: currentUser.displayName || currentUser.email.split('@')[0], authorAvatar: currentUser.photoURL || `https://i.pravatar.cc/40?u=${currentUser.uid}`, createdAt: serverTimestamp(), likes: 0, likedBy: [], commentList: [], shareCount: 0 }); postInput.value=''; showNotification('Post created successfully!'); }catch(e){ showNotification('Error creating post','error'); } finally { postButton.disabled=false; } }
-
-    function listenForPosts(){ if(postsListenerUnsubscribe) postsListenerUnsubscribe(); const qPosts=query(collection(db,'posts'), orderBy('createdAt','desc')); postsListenerUnsubscribe = onSnapshot(qPosts, snap=>{ const posts=snap.docs.map(d=>({id:d.id, ...d.data()})); displayPosts(posts); }, err=>{ console.error('posts', err); displaySamplePosts(); }); }
-
-    function displaySamplePosts(){ const sample=[{id:'s1', type:'original', content:'Sample post', authorName:'Dr. A', authorAvatar:'https://i.pravatar.cc/40?u=a', authorId:'x', createdAt:{toDate:()=>new Date()}, likes:1, likedBy:[], commentList:[], shareCount:0}]; displayPosts(sample); }
-
-    function displayPosts(posts){ postsContainer.innerHTML=''; if(posts.length===0){ postsContainer.innerHTML='<div class="card" style="padding:40px;text-align:center"><h3>Welcome! 🎉</h3><p>Be the first to share your insights!</p></div>'; updateStatus('📚 Ready to post','online'); return; } posts.forEach(p=>{ const el=createPostElement(p); postsContainer.appendChild(el); }); updateStatus(`📡 Online • ${posts.length} posts loaded`,'online'); }
-
-    function createPostElement(p){ const div=document.createElement('div'); div.className='card post'; div.dataset.postId=p.id; const isLiked=p.likedBy?.includes(currentUser?.uid); const comments=p.commentList?.length||0; div.innerHTML=`<div class="post-header"><div class="post-author-info"><img src="${p.authorAvatar}" class="user-avatar"><div><div class="post-author">${p.authorName}</div><div class="post-time">${formatTime(p.createdAt)}</div></div></div>${currentUser?.uid===p.authorId?`<button class="post-menu" onclick="deletePost('${p.id}')">⋯</button>`:''}</div><div class="post-content">${(p.content||'').replace(/\n/g,'<br>')}</div><div class="post-stats"><span>${p.likes||0} reactions • ${comments} comments</span><span>${p.shareCount||0} shares</span></div><div class="post-actions"><button class="post-action ${isLiked?'liked':''}" onclick="toggleLike('${p.id}')">👍 Like</button><button class="post-action" onclick="focusCommentInput('${p.id}')">💬 Comment</button><button class="post-action" onclick="sharePost('${p.id}')">↗️ Share</button></div><div class="comments"><div class="comment-list"></div><div class="comment-form"><input type="text" class="comment-input" placeholder="Write a comment..." onkeydown="commentKeydown(event, '${p.id}')"><button class="comment-btn" onclick="addComment('${p.id}')">Post</button></div></div>`; renderComments(div, p); return div; }
-
-    function renderComments(postEl, post){ const list=postEl.querySelector('.comment-list'); list.innerHTML=''; (post.commentList||[]).forEach(c=>{ const item=document.createElement('div'); item.className='comment-item'; item.innerHTML=`<img src="${c.avatar}" class="comment-avatar"><div><div class="comment-body"><strong>${c.author}</strong><br>${(c.text||'').replace(/\n/g,'<br>')}</div><div class="comment-meta">${formatTime(c.createdAt)}${currentUser?.uid===c.userId?`<button class="delete-comment" onclick="deleteComment('${post.id}','${c.id}')">Delete</button>`:''}</div></div>`; list.appendChild(item); }); }
-
-    // --- window scoped functions ---
-    window.deletePost = async (postId)=>{ if(!confirm('Delete this post?')) return; try{ await deleteDoc(doc(db,'posts', postId)); showNotification('Post deleted'); }catch(e){ showNotification('Error deleting post','error'); } };
-    window.toggleLike = async (postId)=>{ if(!currentUser) return showNotification('Please log in to like!','error'); const ref=doc(db,'posts', postId); try{ const snap=await getDoc(ref); if(!snap.exists()) return; const d=snap.data(); if(d.likedBy?.includes(currentUser.uid)){ await updateDoc(ref,{ likedBy: arrayRemove(currentUser.uid), likes: increment(-1) }); } else { await updateDoc(ref,{ likedBy: arrayUnion(currentUser.uid), likes: increment(1) }); } }catch(e){ console.error(e); } };
-    window.sharePost = async (id)=>{ if(!currentUser) return showNotification('Please log in to share!','error'); const ref=doc(db,'posts', id); try{ const snap=await getDoc(ref); if(!snap.exists()) return showNotification('This post no longer exists.','error'); const data=snap.data(); await addDoc(collection(db,'posts'), { type:'share', sharerId: currentUser.uid, sharerName: currentUser.displayName || currentUser.email.split('@')[0], sharerAvatar: currentUser.photoURL || `https://i.pravatar.cc/40?u=${currentUser.uid}`, createdAt: serverTimestamp(), originalPostId: id, originalPost: data }); await updateDoc(ref,{ shareCount: increment(1) }); showNotification('Post shared successfully!'); }catch(e){ showNotification('Error sharing post','error'); } };
-    window.addComment = async (postId)=>{ if(!currentUser) return showNotification('Please log in to comment!','error'); const input=document.querySelector(`[data-post-id="${postId}"] .comment-input`); const text=input.value.trim(); if(!text) return; const c={ id: Date.now().toString()+currentUser.uid.slice(0,5), userId: currentUser.uid, author: currentUser.displayName || currentUser.email.split('@')[0], avatar: currentUser.photoURL || `https://i.pravatar.cc/28?u=${currentUser.uid}`, text, createdAt: new Date() }; try{ await updateDoc(doc(db,'posts', postId), { commentList: arrayUnion(c) }); input.value=''; }catch(e){ console.error(e); } };
-    window.deleteComment = async (postId, commentId)=>{ if(!currentUser) return; try{ const ref=doc(db,'posts', postId); const snap=await getDoc(ref); if(!snap.exists()) return; const list=snap.data().commentList||[]; const target=list.find(c=>c.id===commentId && c.userId===currentUser.uid); if(target){ await updateDoc(ref,{ commentList: arrayRemove(target) }); } else { showNotification('You can only delete your own comments.','error'); } }catch(e){ console.error(e); } };
-    window.focusCommentInput = (postId)=> document.querySelector(`[data-post-id="${postId}"] .comment-input`)?.focus();
-    window.commentKeydown = (e, postId)=>{ if(e.key==='Enter'&&!e.shiftKey){ e.preventDefault(); addComment(postId); } };
-    window.openChat = openChat;
-
-    // --- Auth State ---
-    onAuthStateChanged(auth, async (user)=>{
-      if(user && user.emailVerified){ currentUser=user; appDiv.classList.remove('hidden'); loginModal.classList.add('hidden'); const avatar=user.photoURL || `https://i.pravatar.cc/40?u=${user.uid}`; const name=user.displayName || user.email.split('@')[0]; [userAvatar, sidebarAvatar, composerAvatar].forEach(el=>{ if(el) el.src=avatar; }); profileName.textContent=name; await updateUserPresence(true); listenForPosts(); listenForOnlineUsers(); updateStatus('✅ Logged in','online'); showNotification(`Welcome back, ${name}!`); } else { currentUser=null; appDiv.classList.add('hidden'); loginModal.classList.remove('hidden'); if(postsListenerUnsubscribe) postsListenerUnsubscribe(); if(onlineUsersListener) onlineUsersListener(); if(messagesListener) messagesListener(); postsContainer.innerHTML=''; onlineUsersList.innerHTML=''; updateStatus('🔄 Please log in','offline'); }
-    });
-
-    // --- Events ---
-    document.addEventListener('DOMContentLoaded', ()=>{ setupAuthEventListeners(); setupPostEventListeners(); document.getElementById('chatToggle').onclick=()=> showNotification('Click on a user to start chatting!'); document.getElementById('closeChatModal').onclick=(e)=>{ e.preventDefault(); closeChat(); }; chatInputForm.onsubmit=(e)=>{ e.preventDefault(); sendMessage(); }; chatInput.oninput=handleTyping; window.addEventListener('beforeunload', ()=>{ if(auth.currentUser) updateUserPresence(false); }); });
-  </script>
+  
   <div id="notification" class="notification"></div>
+
+  <script type="module" src="app.js"></script>
 </body>
 </html>
+
