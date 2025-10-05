@@ -1,212 +1,962 @@
-// --- Firebase Imports ---
+// --- Enhanced Firebase Imports with Storage ---
 import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-app.js";
 import { 
-  getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, 
-  onAuthStateChanged, signOut, sendEmailVerification 
+    getAuth, 
+    createUserWithEmailAndPassword, 
+    signInWithEmailAndPassword, 
+    onAuthStateChanged, 
+    signOut, 
+    sendEmailVerification,
+    updateProfile 
 } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-auth.js";
 import { 
-  getFirestore, collection, addDoc, doc, getDoc, deleteDoc, updateDoc, 
-  query, orderBy, onSnapshot, serverTimestamp, arrayUnion, arrayRemove, 
-  increment, setDoc, where, limit, getDocs
+    getFirestore, 
+    collection, 
+    addDoc, 
+    doc, 
+    getDoc, 
+    deleteDoc, 
+    updateDoc, 
+    query, 
+    orderBy, 
+    onSnapshot, 
+    serverTimestamp, 
+    arrayUnion, 
+    arrayRemove, 
+    increment, 
+    setDoc, 
+    where, 
+    limit, 
+    getDocs 
 } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-firestore.js";
+import { 
+    getStorage, 
+    ref, 
+    uploadBytes, 
+    getDownloadURL,
+    deleteObject 
+} from "https://www.gstatic.com/firebasejs/11.0.1/firebase-storage.js";
 
 // --- App Initialization wrapped in DOMContentLoaded to prevent race conditions ---
 document.addEventListener('DOMContentLoaded', () => {
+    // --- Firebase Configuration & Initialization ---
+    const firebaseConfig = {
+        apiKey: "AIzaSyALLWz-xkvroabNu_ug6ZVdDEmNF3O2eJs",
+        authDomain: "deep-9656b.firebaseapp.com",
+        projectId: "deep-9656b",
+        storageBucket: "deep-9656b.firebasestorage.app",
+        messagingSenderId: "786248126233",
+        appId: "1:786248126233:web:be8ebed2a68281204eff88",
+    };
 
-  // --- Firebase Configuration & Initialization ---
-  const firebaseConfig = {
-    apiKey: "AIzaSyALLWz-xkvroabNu_ug6ZVdDEmNF3O2eJs",
-    authDomain: "deep-9656b.firebaseapp.com",
-    projectId: "deep-9656b",
-    storageBucket: "deep-9656b.firebasestorage.app",
-    messagingSenderId: "786248126233",
-    appId: "1:786248126233:web:be8ebed2a68281204eff88",
-  };
-  const app = initializeApp(firebaseConfig);
-  const auth = getAuth(app);
-  const db = getFirestore(app);
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    const db = getFirestore(app);
+    const storage = getStorage(app);
 
-  // --- Global State ---
-  let currentUser = null;
-  let postsListener = null, usersListener = null, chatListener = null, typingListener = null, notificationsListener = null;
-  let currentChatUser = null;
-  let typingTimer = null;
+    // --- Global State ---
+    let currentUser = null;
+    let postsListener = null, usersListener = null, chatListener = null, typingListener = null, notificationsListener = null;
+    let currentChatUser = null;
+    let typingTimer = null;
+    let isDragging = false;
 
-  // --- DOM Element Cache (Initialized safely after DOM is loaded) ---
-  const DOMElements = {
-    html: document.documentElement,
-    app: document.getElementById('app'),
-    loginModal: document.getElementById('loginModal'),
-    userAvatar: document.getElementById('userAvatar'),
-    sidebarAvatar: document.getElementById('sidebarAvatar'),
-    composerAvatar: document.getElementById('composerAvatar'),
-    profileName: document.getElementById('profileName'),
-    status: document.getElementById('status'),
-    postsContainer: document.getElementById('postsContainer'),
-    postInput: document.getElementById('postInput'),
-    postButton: document.getElementById('postButton'),
-    onlineUsersList: document.getElementById('onlineUsersList'),
-    chatModal: document.getElementById('chatModal'),
-    chatContainer: document.querySelector('.chat-container'),
-    chatHeader: document.querySelector('.chat-header'),
-    chatUserAvatar: document.getElementById('chatUserAvatar'),
-    chatUserName: document.getElementById('chatUserName'),
-    chatUserStatus: document.getElementById('chatUserStatus'),
-    messagesContainer: document.getElementById('messagesContainer'),
-    messagesList: document.getElementById('messagesList'),
-    chatInput: document.getElementById('chatInput'),
-    chatInputForm: document.getElementById('chatInputForm'),
-    typingIndicator: document.getElementById('typingIndicator'),
-    typingUserName: document.getElementById('typingUserName'),
-    notification: document.getElementById('notification'),
-    themeToggle: document.getElementById('themeToggle'),
-    notificationsToggle: document.getElementById('notificationsToggle'),
-    notificationCount: document.getElementById('notificationCount'),
-    notificationsPanel: document.getElementById('notificationsPanel'),
-    notificationsList: document.getElementById('notificationsList'),
-  };
+    // --- DOM Element Cache (Initialized safely after DOM is loaded) ---
+    const DOMElements = {
+        html: document.documentElement,
+        app: document.getElementById('app'),
+        loginModal: document.getElementById('loginModal'),
+        userAvatar: document.getElementById('userAvatar'),
+        sidebarAvatar: document.getElementById('sidebarAvatar'),
+        composerAvatar: document.getElementById('composerAvatar'),
+        profileName: document.getElementById('profileName'),
+        status: document.getElementById('status'),
+        postsContainer: document.getElementById('postsContainer'),
+        postInput: document.getElementById('postInput'),
+        postButton: document.getElementById('postButton'),
+        onlineUsersList: document.getElementById('onlineUsersList'),
+        chatModal: document.getElementById('chatModal'),
+        chatContainer: document.querySelector('.chat-container'),
+        chatHeader: document.querySelector('.chat-header'),
+        chatUserAvatar: document.getElementById('chatUserAvatar'),
+        chatUserName: document.getElementById('chatUserName'),
+        chatUserStatus: document.getElementById('chatUserStatus'),
+        messagesContainer: document.getElementById('messagesContainer'),
+        messagesList: document.getElementById('messagesList'),
+        chatInput: document.getElementById('chatInput'),
+        chatInputForm: document.getElementById('chatInputForm'),
+        typingIndicator: document.getElementById('typingIndicator'),
+        typingUserName: document.getElementById('typingUserName'),
+        notification: document.getElementById('notification'),
+        themeToggle: document.getElementById('themeToggle'),
+        notificationsToggle: document.getElementById('notificationsToggle'),
+        notificationCount: document.getElementById('notificationCount'),
+        notificationsPanel: document.getElementById('notificationsPanel'),
+        notificationsList: document.getElementById('notificationsList'),
+        closeChatBtn: document.getElementById('closeChatBtn'),
+        changeAvatarBtn: document.getElementById('changeAvatarBtn'),
+        avatarModal: document.getElementById('avatarModal'),
+        avatarInput: document.getElementById('avatarInput'),
+        uploadAvatarBtn: document.getElementById('uploadAvatarBtn'),
+        cancelAvatarBtn: document.getElementById('cancelAvatarBtn'),
+        chatImageBtn: document.getElementById('chatImageBtn'),
+        chatImageInput: document.getElementById('chatImageInput'),
+        logoutBtn: document.getElementById('logoutBtn')
+    };
 
-  const showToast = (message, type = 'success') => { DOMElements.notification.textContent = message; DOMElements.notification.className = `notification ${type}`; DOMElements.notification.classList.add('show'); setTimeout(() => DOMElements.notification.classList.remove('show'), 3000); };
-  const formatTime = (ts) => { if (!ts?.toDate) return 'a moment ago'; const d = ts.toDate(), now = new Date(), diff = now - d; if (diff < 60000) return 'Just now'; if (diff < 3600000) return `${Math.floor(diff/60000)}m ago`; if (diff < 86400000) return `${Math.floor(diff/3600000)}h ago`; return d.toLocaleDateString('en-US',{day:'numeric',month:'short'}); };
-  const getChatId = (uid1, uid2) => [uid1, uid2].sort().join('_');
-  const applyTheme = (theme) => { DOMElements.html.setAttribute('data-color-scheme', theme); DOMElements.themeToggle.textContent = theme === 'dark' ? '☀️' : '🌙'; localStorage.setItem('theme', theme); };
-  const toggleTheme = () => { applyTheme((DOMElements.html.getAttribute('data-color-scheme') || 'light') === 'dark' ? 'light' : 'dark'); };
+    // --- Enhanced Utility Functions ---
+    const showToast = (message, type = 'success') => {
+        DOMElements.notification.textContent = message;
+        DOMElements.notification.className = `toast-notification ${type}`;
+        DOMElements.notification.classList.add('show');
+        setTimeout(() => DOMElements.notification.classList.remove('show'), 3000);
+    };
 
-  // --- Notification System ---
-  const createNotification = async (recipientId, type, contentSnippet = null, postId = null) => { if (recipientId === currentUser.uid) return; try { await addDoc(collection(db, 'notifications'), { recipientId, senderId: currentUser.uid, senderName: currentUser.displayName, type, contentSnippet, postId, read: false, createdAt: serverTimestamp() }); } catch (e) { console.error("Notification Error:", e); } };
-  const listenForNotifications = () => { if (notificationsListener) notificationsListener(); const q = query(collection(db, 'notifications'), where('recipientId', '==', currentUser.uid), orderBy('createdAt', 'desc'), limit(10)); notificationsListener = onSnapshot(q, s => { const notifs = s.docs.map(d => ({ id: d.id, ...d.data() })); const unread = notifs.filter(n => !n.read).length; DOMElements.notificationCount.textContent = unread; DOMElements.notificationCount.classList.toggle('hidden', unread === 0); renderNotifications(notifs); }); };
-  
-  // MODIFIED: Added data attributes for interactivity
-  const renderNotifications = (notifs) => {
-    const list = DOMElements.notificationsList;
-    list.innerHTML = '';
-    if (notifs.length === 0) {
-      list.innerHTML = '<div class="no-notifications">No notifications yet.</div>';
-      return;
-    }
-    notifs.forEach(n => {
-      const item = document.createElement('div');
-      item.className = `notification-item ${!n.read ? 'unread' : ''}`;
-      item.dataset.type = n.type;
-      item.dataset.senderId = n.senderId;
-      if (n.postId) item.dataset.postId = n.postId;
+    const formatTime = (ts) => {
+        if (!ts?.toDate) return 'a moment ago';
+        const d = ts.toDate(), now = new Date(), diff = now - d;
+        if (diff < 60000) return 'Just now';
+        if (diff < 3600000) return `${Math.floor(diff/60000)}m ago`;
+        if (diff < 86400000) return `${Math.floor(diff/3600000)}h ago`;
+        return d.toLocaleDateString('en-US', {day:'numeric', month:'short'});
+    };
 
-      let icon='🔔', text='';
-      switch(n.type){
-        case 'like': icon='👍'; text=`<strong>${n.senderName}</strong> liked your post.`; break;
-        case 'comment': icon='💬'; text=`<strong>${n.senderName}</strong> commented: "${n.contentSnippet}"`; break;
-        case 'share': icon='↗️'; text=`<strong>${n.senderName}</strong> shared your post.`; break;
-        case 'message': icon='✉️'; text=`<strong>${n.senderName}</strong> sent you a message.`; break;
-        default: text=`New notification.`; break;
-      }
-      item.innerHTML = `<div class="notification-item-icon">${icon}</div><div class="notification-item-content"><p>${text}</p><div class="notification-item-time">${formatTime(n.createdAt)}</div></div>`;
-      list.appendChild(item);
-    });
-  };
+    const getChatId = (uid1, uid2) => [uid1, uid2].sort().join('_');
 
-  const markNotificationsAsRead = async () => { const q = query(collection(db, 'notifications'), where('recipientId', '==', currentUser.uid), where('read', '==', false)); const s = await getDocs(q); s.forEach(d => updateDoc(d.ref, { read: true })); };
-  
-  // NEW: Handles clicks on notification items
-  const handleNotificationClick = async (event) => {
-    const target = event.target.closest('.notification-item');
-    if (!target) return;
+    const applyTheme = (theme) => {
+        DOMElements.html.setAttribute('data-color-scheme', theme);
+        DOMElements.themeToggle.textContent = theme === 'dark' ? '☀️' : '🌙';
+        localStorage.setItem('theme', theme);
+    };
 
-    const { type, senderId, postId } = target.dataset;
+    const toggleTheme = () => {
+        applyTheme((DOMElements.html.getAttribute('data-color-scheme') || 'light') === 'dark' ? 'light' : 'dark');
+    };
 
-    // Handle message notifications
-    if (type === 'message' && senderId) {
-      const userRef = doc(db, 'users', senderId);
-      const userSnap = await getDoc(userRef);
-      if (userSnap.exists()) {
-        openChat(userSnap.data());
-        DOMElements.notificationsPanel.classList.add('hidden'); // Close panel after click
-      } else {
-        showToast('Could not find user to open chat.', 'error');
-      }
-    }
+    // --- Enhanced Profile Picture Upload ---
+    const uploadProfilePicture = async (file) => {
+        if (!file || !currentUser) return null;
 
-    // Future enhancement: Handle post notifications
-    if ((type === 'like' || type === 'comment' || type === 'share') && postId) {
-      showToast('Navigating to posts from notifications will be added soon!', 'info');
-      DOMElements.notificationsPanel.classList.add('hidden');
-    }
-  };
+        try {
+            const fileRef = ref(storage, `avatars/${currentUser.uid}/${Date.now()}_${file.name}`);
+            const snapshot = await uploadBytes(fileRef, file);
+            const downloadURL = await getDownloadURL(snapshot.ref);
 
-  const makeDraggable = (element, handle) => { let p1=0,p2=0,p3=0,p4=0; handle.onmousedown = e => { e.preventDefault(); p3=e.clientX; p4=e.clientY; document.onmouseup = ()=>{document.onmouseup=null; document.onmousemove=null; document.body.classList.remove('dragging-no-select');}; document.onmousemove = e => { e.preventDefault(); p1=p3-e.clientX; p2=p4-e.clientY; p3=e.clientX; p4=e.clientY; let top=element.offsetTop-p2, left=element.offsetLeft-p1; const max_X=window.innerWidth-element.offsetWidth, max_Y=window.innerHeight-element.offsetHeight; top=Math.max(0,Math.min(top,max_Y)); left=Math.max(0,Math.min(left,max_X)); element.style.top=top+"px"; element.style.left=left+"px"; element.style.bottom='auto'; element.style.right='auto'; }; document.body.classList.add('dragging-no-select'); }; };
+            // Update user profile in Firebase Auth
+            await updateProfile(currentUser, { photoURL: downloadURL });
 
-  const updateUserPresence = async (isOnline) => { if (!currentUser) return; await setDoc(doc(db,'users',currentUser.uid),{uid:currentUser.uid,displayName:currentUser.displayName,email:currentUser.email,photoURL:currentUser.photoURL,presence:{state:isOnline?'online':'offline',last_changed:serverTimestamp()}},{merge:true}); };
-  const renderOnlineUsers = (users) => { DOMElements.onlineUsersList.innerHTML = ''; users.sort((a,b)=>(b.presence?.state==='online')-(a.presence?.state==='online')).forEach(u=>{const el=document.createElement('div');el.className='online-user-item';el.onclick=()=>openChat(u);el.innerHTML=`<div class="online-user-avatar"><img src="${u.photoURL}" class="user-avatar" alt="${u.displayName}"><div class="online-indicator" style="display:${u.presence?.state==='online'?'block':'none'}"></div></div><span class="online-user-name">${u.displayName}</span>`;DOMElements.onlineUsersList.appendChild(el);});};
-  const renderMessages = (messages) => { DOMElements.messagesList.innerHTML = ''; messages.forEach(m => { const el = document.createElement('div'); el.className = `message ${m.senderId === currentUser.uid ? 'sent' : 'received'}`; el.innerHTML = `<div class="message-bubble">${m.text}</div><div class="message-timestamp">${formatTime(m.timestamp)}</div>`; DOMElements.messagesList.appendChild(el); }); DOMElements.messagesContainer.scrollTop = DOMElements.messagesContainer.scrollHeight; };
-  const displayPosts = (posts) => { DOMElements.postsContainer.innerHTML = ''; if(posts.length === 0) { DOMElements.postsContainer.innerHTML = `<div class="post" style="text-align:center;">No posts yet.</div>`; return; } posts.forEach(p => DOMElements.postsContainer.appendChild(createPostElement(p))); };
-  const renderComments = (postEl, comments = []) => { const listEl = postEl.querySelector('.comment-list'); listEl.innerHTML = ''; comments.forEach(c => { const item = document.createElement('div'); item.className = 'comment-item'; item.innerHTML = `<img src="${c.avatar}" class="comment-avatar"><div><div class="comment-body"><strong>${c.author}</strong> ${c.text}</div><div class="comment-meta">${formatTime(c.createdAt)}${c.userId === currentUser?.uid ? `<button class="delete-comment" onclick="deleteComment('${postEl.dataset.postId}', '${c.id}')">Delete</button>` : ''}</div></div>`; listEl.appendChild(item); }); };
-    
-  window.createPostElement = (post) => { const el = document.createElement('div'); if (post.type === 'share') { el.className = 'post shared-post'; const op = post.originalPost, opId = post.originalPostId; el.innerHTML = `<div class="share-header">🧠 <strong>${post.sharerName}</strong> shared this</div><div class="post-content-wrapper"><div class="post-header"><div class="post-author-info"><img src="${op.authorAvatar}" class="user-avatar"><div><div class="post-author">${op.authorName}</div><div class="post-time">${formatTime(op.createdAt)}</div></div></div></div><div class="post-content">${(op.content||'').replace(/\n/g,'<br>')}</div><div class="post-stats"><span>${op.likes||0} Likes</span><span>${op.commentList?.length||0} Comments</span><span>${op.shareCount||0} Shares</span></div><div class="post-actions"><button class="post-action ${op.likedBy?.includes(currentUser?.uid)?'liked':''}" onclick="toggleLike('${opId}')">👍 Like</button><button class="post-action" onclick="focusCommentInput('${opId}')">💬 Comment</button><button class="post-action" onclick="sharePost('${opId}')">↗️ Share</button></div></div>`; } else { el.className = 'post'; el.dataset.postId = post.id; el.innerHTML = `<div class="post-header"><div class="post-author-info"><img src="${post.authorAvatar}" class="user-avatar"><div><div class="post-author">${post.authorName}</div><div class="post-time">${formatTime(post.createdAt)}</div></div></div>${post.authorId===currentUser?.uid?`<button class="post-menu" onclick="deletePost('${post.id}')">✕</button>`:''}</div><div class="post-content">${post.content.replace(/\n/g,'<br>')}</div><div class="post-stats"><span>${post.likes||0} Likes</span><span>${post.commentList?.length||0} Comments</span><span>${post.shareCount||0} Shares</span></div><div class="post-actions"><button class="post-action ${post.likedBy?.includes(currentUser?.uid)?'liked':''}" onclick="toggleLike('${post.id}')">👍 Like</button><button class="post-action" onclick="focusCommentInput('${post.id}')">💬 Comment</button><button class="post-action" onclick="sharePost('${post.id}')">↗️ Share</button></div><div class="comments"><div class="comment-list"></div><form class="comment-form" onsubmit="addComment(event, '${post.id}')"><input class="comment-input" type="text" placeholder="Add a comment..."><button type="submit" class="comment-btn">Post</button></form></div>`; renderComments(el, post.commentList); } return el; };
+            // Update user document in Firestore
+            await updateDoc(doc(db, 'users', currentUser.uid), {
+                photoURL: downloadURL,
+                updatedAt: serverTimestamp()
+            });
 
-  const openChat = (user) => { currentChatUser = user; DOMElements.chatUserAvatar.src = user.photoURL; DOMElements.chatUserName.textContent = user.displayName; DOMElements.chatUserStatus.textContent = user.presence?.state === 'online' ? 'Online' : 'Offline'; DOMElements.chatModal.classList.remove('hidden'); DOMElements.chatInput.focus(); const chatId = getChatId(currentUser.uid, user.uid); if (chatListener) chatListener(); const q = query(collection(db,'chats',chatId,'messages'),orderBy('timestamp','asc')); chatListener=onSnapshot(q,s=>renderMessages(s.docs.map(d=>d.data()))); if (typingListener) typingListener(); typingListener=onSnapshot(doc(db,'chats',chatId),s=>{if(!s.exists()||!currentChatUser)return;const t=s.data().typing||{};DOMElements.typingIndicator.classList.toggle('hidden',!t[currentChatUser.uid]);}); };
-  const closeChat = () => { if (chatListener) chatListener(); if (typingListener) typingListener(); currentChatUser = null; DOMElements.chatModal.classList.add('hidden'); };
-  const sendMessage = async () => { const text=DOMElements.chatInput.value.trim(); if(!text||!currentChatUser)return; DOMElements.chatInput.value='';const chatId=getChatId(currentUser.uid,currentChatUser.uid); await addDoc(collection(db,'chats',chatId,'messages'),{text,senderId:currentUser.uid,timestamp:serverTimestamp()}); await setDoc(doc(db,'chats',chatId),{participants:[currentUser.uid,currentChatUser.uid],lastMessage:text},{merge:true}); createNotification(currentChatUser.uid,'message',text); };
-  const updateTypingStatus = async (isTyping) => { if (!currentChatUser) return; await setDoc(doc(db,'chats',getChatId(currentUser.uid,currentChatUser.uid)),{typing:{[currentUser.uid]:isTyping}},{merge:true}); };
-    
-  window.createPost = async () => { const c=DOMElements.postInput.value.trim(); if(!c)return; DOMElements.postButton.disabled=true; await addDoc(collection(db,'posts'),{type:'original',authorId:currentUser.uid,authorName:currentUser.displayName,authorAvatar:currentUser.photoURL,content:c,createdAt:serverTimestamp(),likes:0,likedBy:[],commentList:[],shareCount:0}); DOMElements.postInput.value=''; DOMElements.postButton.disabled=false; };
-  window.deletePost = async(id)=>{if(confirm('Delete post?')){await deleteDoc(doc(db,"posts",id));showToast('Post deleted.');}};
-  window.toggleLike = async(id)=>{const ref=doc(db,'posts',id);const snap=await getDoc(ref);if(!snap.exists())return;const data=snap.data();if(data.likedBy?.includes(currentUser.uid)){await updateDoc(ref,{likedBy:arrayRemove(currentUser.uid),likes:increment(-1)})}else{await updateDoc(ref,{likedBy:arrayUnion(currentUser.uid),likes:increment(1)});createNotification(data.authorId,'like',null,id)}};
-  window.sharePost = async(id)=>{const ref=doc(db,'posts',id);const snap=await getDoc(ref);if(!snap.exists())return showToast('Post not found.','error');const data=snap.data();await addDoc(collection(db,'posts'),{type:'share',sharerId:currentUser.uid,sharerName:currentUser.displayName,createdAt:serverTimestamp(),originalPostId:id,originalPost:data});await updateDoc(ref,{shareCount:increment(1)});createNotification(data.authorId,'share',null,id);showToast('Post shared!');};
-  window.focusCommentInput = (id)=>document.querySelector(`[data-post-id="${id}"] .comment-input`).focus();
-  window.addComment = async(e,id)=>{e.preventDefault();const input=e.target.querySelector('.comment-input'),text=input.value.trim();if(!text)return;const c={id:doc(collection(db,'tmp')).id,userId:currentUser.uid,author:currentUser.displayName,avatar:currentUser.photoURL,text,createdAt:new Date()};const ref=doc(db,'posts',id);await updateDoc(ref,{commentList:arrayUnion(c)});input.value='';const snap=await getDoc(ref);createNotification(snap.data().authorId,'comment',text,id)};
-  window.deleteComment = async(pid,cid)=>{const ref=doc(db,'posts',pid);const snap=await getDoc(ref);if(!snap.exists())return;const c=snap.data().commentList.find(c=>c.id===cid);if(c){await updateDoc(ref,{commentList:arrayRemove(c)})}};
-    
-  const setupAuthEventListeners=()=>{document.getElementById('loginTab').addEventListener('click',()=>switchAuthTab('login'));document.getElementById('signupTab').addEventListener('click',()=>switchAuthTab('signup'));document.getElementById('logoutBtn').addEventListener('click',handleLogout);document.getElementById('loginForm').addEventListener('submit',handleLogin);document.getElementById('signupForm').addEventListener('submit',handleSignup)};
-  const switchAuthTab=(tab)=>{document.getElementById('loginForm').classList.toggle('hidden',tab!=='login');document.getElementById('signupForm').classList.toggle('hidden',tab==='login');document.getElementById('loginTab').classList.toggle('active',tab==='login');document.getElementById('signupTab').classList.toggle('active',tab!=='login')};
-  const handleLogin=async(e)=>{e.preventDefault();const {email,password}=Object.fromEntries(new FormData(e.target));try{const c=await signInWithEmailAndPassword(auth,email,password);if(!c.user.emailVerified){await signOut(auth);document.getElementById('loginMessage').textContent='Please verify your email.'}}catch(err){document.getElementById('loginMessage').textContent=err.message}};
-  const handleSignup=async(e)=>{e.preventDefault();const {email,password}=Object.fromEntries(new FormData(e.target));try{const c=await createUserWithEmailAndPassword(auth,email,password);await sendEmailVerification(c.user);await signOut(auth);document.getElementById('signupMessage').textContent='Account created! Please verify your email.'}catch(err){document.getElementById('signupMessage').textContent=err.message}};
-  const handleLogout=async()=>{await updateUserPresence(false);await signOut(auth)};
+            return downloadURL;
+        } catch (error) {
+            console.error('Error uploading profile picture:', error);
+            throw error;
+        }
+    };
 
-  onAuthStateChanged(auth, async (user) => {
-    if (user && user.emailVerified) {
-      currentUser={uid:user.uid,displayName:user.displayName||user.email.split('@')[0],email:user.email,photoURL:user.photoURL||`https://i.pravatar.cc/40?u=${user.uid}`};
-      DOMElements.app.classList.remove('hidden');
-      DOMElements.loginModal.classList.add('hidden');
-      [DOMElements.userAvatar,DOMElements.sidebarAvatar,DOMElements.composerAvatar].forEach(el=>el.src=currentUser.photoURL);
-      DOMElements.profileName.textContent=currentUser.displayName;
-      
-      await updateUserPresence(true);
-      
-      if(postsListener)postsListener();
-      const qp=query(collection(db,'posts'),orderBy('createdAt','desc'));
-      postsListener=onSnapshot(qp,s=>displayPosts(s.docs.map(d=>({id:d.id,...d.data()}))));
-      
-      if(usersListener)usersListener();
-      const qu=query(collection(db,'users'));
-      usersListener=onSnapshot(qu,s=>renderOnlineUsers(s.docs.map(d=>d.data()).filter(u=>u.uid!==currentUser?.uid)));
-      
-      // **** THE FIX: START THE NOTIFICATION LISTENER ON LOGIN ****
-      listenForNotifications();
+    const uploadChatImage = async (file) => {
+        if (!file || !currentUser) return null;
 
-    } else {
-      currentUser=null;
-      DOMElements.app.classList.add('hidden');
-      DOMElements.loginModal.classList.remove('hidden');
-      
-      // Stop all listeners on logout
-      if(postsListener) postsListener();
-      if(usersListener) usersListener();
-      if(notificationsListener) notificationsListener();
-    }
-  });
+        try {
+            const fileRef = ref(storage, `chat-images/${currentUser.uid}/${Date.now()}_${file.name}`);
+            const snapshot = await uploadBytes(fileRef, file);
+            const downloadURL = await getDownloadURL(snapshot.ref);
+            return downloadURL;
+        } catch (error) {
+            console.error('Error uploading chat image:', error);
+            throw error;
+        }
+    };
 
-  setupAuthEventListeners();
-  applyTheme(localStorage.getItem('theme') || 'light');
-  DOMElements.themeToggle.addEventListener('click', toggleTheme);
-  DOMElements.notificationsToggle.addEventListener('click', () => { DOMElements.notificationsPanel.classList.toggle('hidden'); if (!DOMElements.notificationsPanel.classList.contains('hidden')) markNotificationsAsRead(); });
-  
-  // ADDED: Event listener for notification clicks
-  DOMElements.notificationsList.addEventListener('click', handleNotificationClick);
+    // --- Enhanced User Management ---
+    const updateUserPresence = async (isOnline) => {
+        if (!currentUser) return;
+        try {
+            await updateDoc(doc(db, 'users', currentUser.uid), {
+                isOnline,
+                lastSeen: serverTimestamp()
+            });
+        } catch (e) {
+            console.error("Presence update error:", e);
+        }
+    };
 
-  DOMElements.postButton.addEventListener('click', window.createPost);
-  DOMElements.chatInputForm.addEventListener('submit', (e) => { e.preventDefault(); sendMessage(); });
-  DOMElements.chatInput.addEventListener('input', () => { clearTimeout(typingTimer); updateTypingStatus(true); typingTimer = setTimeout(() => updateTypingStatus(false), 2000); });
-  document.getElementById('closeChatModal').addEventListener('click', closeChat);
-  makeDraggable(DOMElements.chatContainer, DOMElements.chatHeader);
-  window.addEventListener('beforeunload', () => { if (auth.currentUser) { updateUserPresence(false); } });
+    // --- Enhanced Chat System ---
+    const sendMessage = async (text = '', imageUrl = '') => {
+        if ((!text.trim() && !imageUrl) || !currentChatUser || !currentUser) return;
+
+        const chatId = getChatId(currentUser.uid, currentChatUser.id);
+        
+        try {
+            const messageData = {
+                text: text.trim(),
+                imageUrl: imageUrl || '',
+                senderId: currentUser.uid,
+                senderName: currentUser.displayName,
+                senderAvatar: currentUser.photoURL || 'https://via.placeholder.com/40',
+                timestamp: serverTimestamp()
+            };
+
+            await addDoc(collection(db, 'chats', chatId, 'messages'), messageData);
+
+            // Update chat metadata
+            await setDoc(doc(db, 'chats', chatId), {
+                participants: [currentUser.uid, currentChatUser.id],
+                lastMessage: text.trim() || '📷 Image',
+                lastMessageTime: serverTimestamp(),
+                updatedAt: serverTimestamp()
+            }, { merge: true });
+
+            // Clear typing indicator
+            clearTypingIndicator();
+
+            // Send notification for new message
+            await createNotification(currentChatUser.id, 'message', text.trim() || '📷 Image');
+
+            DOMElements.chatInput.value = '';
+        } catch (error) {
+            console.error('Error sending message:', error);
+            showToast('Failed to send message', 'error');
+        }
+    };
+
+    const sendTypingIndicator = async () => {
+        if (!currentChatUser || !currentUser) return;
+        
+        const chatId = getChatId(currentUser.uid, currentChatUser.id);
+        
+        try {
+            await setDoc(doc(db, 'typing', chatId), {
+                [currentUser.uid]: {
+                    name: currentUser.displayName,
+                    timestamp: serverTimestamp()
+                }
+            }, { merge: true });
+        } catch (error) {
+            console.error('Error sending typing indicator:', error);
+        }
+    };
+
+    const clearTypingIndicator = async () => {
+        if (!currentChatUser || !currentUser) return;
+        
+        const chatId = getChatId(currentUser.uid, currentChatUser.id);
+        
+        try {
+            await updateDoc(doc(db, 'typing', chatId), {
+                [currentUser.uid]: null
+            });
+        } catch (error) {
+            console.error('Error clearing typing indicator:', error);
+        }
+    };
+
+    const listenForTyping = () => {
+        if (!currentChatUser || !currentUser) return;
+        
+        const chatId = getChatId(currentUser.uid, currentChatUser.id);
+        
+        if (typingListener) typingListener();
+        
+        typingListener = onSnapshot(doc(db, 'typing', chatId), (doc) => {
+            const data = doc.data();
+            if (!data) {
+                DOMElements.typingIndicator.classList.add('hidden');
+                return;
+            }
+
+            const otherUserTyping = Object.keys(data).find(uid => 
+                uid !== currentUser.uid && data[uid] && data[uid].timestamp
+            );
+
+            if (otherUserTyping) {
+                const typingUser = data[otherUserTyping];
+                const timeDiff = Date.now() - (typingUser.timestamp?.toDate?.()?.getTime() || 0);
+                
+                if (timeDiff < 5000) { // Show typing if within last 5 seconds
+                    DOMElements.typingUserName.textContent = typingUser.name;
+                    DOMElements.typingIndicator.classList.remove('hidden');
+                } else {
+                    DOMElements.typingIndicator.classList.add('hidden');
+                }
+            } else {
+                DOMElements.typingIndicator.classList.add('hidden');
+            }
+        });
+    };
+
+    const openChat = async (user) => {
+        currentChatUser = user;
+        DOMElements.chatModal.classList.remove('hidden');
+        
+        DOMElements.chatUserAvatar.src = user.photoURL || 'https://via.placeholder.com/32';
+        DOMElements.chatUserName.textContent = user.displayName;
+        DOMElements.chatUserStatus.textContent = user.isOnline ? 'Online' : 'Offline';
+
+        // Load messages
+        loadChatMessages();
+        
+        // Start listening for typing
+        listenForTyping();
+
+        // Mark user as having seen the chat
+        const chatId = getChatId(currentUser.uid, user.id);
+        try {
+            await updateDoc(doc(db, 'chats', chatId), {
+                [`seen_${currentUser.uid}`]: serverTimestamp()
+            });
+        } catch (error) {
+            console.error('Error marking chat as seen:', error);
+        }
+    };
+
+    const loadChatMessages = () => {
+        if (!currentChatUser || !currentUser) return;
+
+        const chatId = getChatId(currentUser.uid, currentChatUser.id);
+
+        if (chatListener) chatListener();
+
+        const messagesQuery = query(
+            collection(db, 'chats', chatId, 'messages'),
+            orderBy('timestamp', 'asc'),
+            limit(50)
+        );
+
+        chatListener = onSnapshot(messagesQuery, (snapshot) => {
+            const messages = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+            renderMessages(messages);
+        });
+    };
+
+    const renderMessages = (messages) => {
+        DOMElements.messagesList.innerHTML = '';
+
+        messages.forEach(message => {
+            const messageEl = document.createElement('div');
+            messageEl.className = `message ${message.senderId === currentUser.uid ? 'sent' : 'received'}`;
+
+            const avatarEl = document.createElement('img');
+            avatarEl.className = 'message-avatar';
+            avatarEl.src = message.senderAvatar || 'https://via.placeholder.com/28';
+            avatarEl.alt = message.senderName;
+
+            const bubbleEl = document.createElement('div');
+            bubbleEl.className = 'message-bubble';
+
+            if (message.imageUrl) {
+                const imageEl = document.createElement('img');
+                imageEl.className = 'message-image';
+                imageEl.src = message.imageUrl;
+                imageEl.alt = 'Shared image';
+                imageEl.onclick = () => window.open(message.imageUrl, '_blank');
+                bubbleEl.appendChild(imageEl);
+            }
+
+            if (message.text) {
+                const textEl = document.createElement('div');
+                textEl.textContent = message.text;
+                bubbleEl.appendChild(textEl);
+            }
+
+            const timeEl = document.createElement('span');
+            timeEl.className = 'message-time';
+            timeEl.textContent = formatTime(message.timestamp);
+            bubbleEl.appendChild(timeEl);
+
+            messageEl.appendChild(avatarEl);
+            messageEl.appendChild(bubbleEl);
+
+            DOMElements.messagesList.appendChild(messageEl);
+        });
+
+        // Scroll to bottom
+        DOMElements.messagesContainer.scrollTop = DOMElements.messagesContainer.scrollHeight;
+    };
+
+    // --- Enhanced Notification System ---
+    const createNotification = async (recipientId, type, contentSnippet = null, postId = null) => {
+        if (recipientId === currentUser.uid) return;
+
+        try {
+            await addDoc(collection(db, 'notifications'), {
+                recipientId,
+                senderId: currentUser.uid,
+                senderName: currentUser.displayName,
+                senderAvatar: currentUser.photoURL || 'https://via.placeholder.com/40',
+                type,
+                contentSnippet,
+                postId,
+                read: false,
+                createdAt: serverTimestamp()
+            });
+        } catch (e) {
+            console.error("Notification Error:", e);
+        }
+    };
+
+    const listenForNotifications = () => {
+        if (notificationsListener) notificationsListener();
+
+        const q = query(
+            collection(db, 'notifications'),
+            where('recipientId', '==', currentUser.uid),
+            orderBy('createdAt', 'desc'),
+            limit(10)
+        );
+
+        notificationsListener = onSnapshot(q, snapshot => {
+            const notifs = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+            const unread = notifs.filter(n => !n.read).length;
+
+            DOMElements.notificationCount.textContent = unread;
+            DOMElements.notificationCount.classList.toggle('hidden', unread === 0);
+
+            renderNotifications(notifs);
+        });
+    };
+
+    const renderNotifications = (notifs) => {
+        const list = DOMElements.notificationsList;
+        list.innerHTML = '';
+
+        if (notifs.length === 0) {
+            list.innerHTML = '<div class="no-notifications">No notifications yet</div>';
+            return;
+        }
+
+        notifs.forEach(notif => {
+            const item = document.createElement('div');
+            item.className = `notification-item ${!notif.read ? 'unread' : ''}`;
+            item.dataset.notificationId = notif.id;
+
+            const icon = getNotificationIcon(notif.type);
+            
+            item.innerHTML = `
+                <div class="notification-item-icon">${icon}</div>
+                <div style="flex: 1;">
+                    <div><strong>${notif.senderName}</strong> ${getNotificationText(notif.type, notif.contentSnippet)}</div>
+                    <div class="notification-item-time">${formatTime(notif.createdAt)}</div>
+                </div>
+            `;
+
+            item.onclick = () => markNotificationAsRead(notif.id);
+            list.appendChild(item);
+        });
+    };
+
+    const getNotificationIcon = (type) => {
+        switch (type) {
+            case 'like': return '❤️';
+            case 'comment': return '💬';
+            case 'message': return '📩';
+            case 'follow': return '👥';
+            default: return '🔔';
+        }
+    };
+
+    const getNotificationText = (type, content) => {
+        switch (type) {
+            case 'like': return 'liked your post';
+            case 'comment': return `commented: "${content}"`;
+            case 'message': return `sent you a message: "${content}"`;
+            case 'follow': return 'started following you';
+            default: return 'sent you a notification';
+        }
+    };
+
+    const markNotificationAsRead = async (notificationId) => {
+        try {
+            await updateDoc(doc(db, 'notifications', notificationId), { read: true });
+        } catch (error) {
+            console.error('Error marking notification as read:', error);
+        }
+    };
+
+    // --- Enhanced Online Users ---
+    const listenForOnlineUsers = () => {
+        if (usersListener) usersListener();
+
+        const q = query(
+            collection(db, 'users'),
+            where('isOnline', '==', true),
+            limit(20)
+        );
+
+        usersListener = onSnapshot(q, snapshot => {
+            const users = snapshot.docs
+                .map(d => ({ id: d.id, ...d.data() }))
+                .filter(user => user.id !== currentUser.uid);
+
+            renderOnlineUsers(users);
+        });
+    };
+
+    const renderOnlineUsers = (users) => {
+        DOMElements.onlineUsersList.innerHTML = '';
+
+        users.forEach(user => {
+            const userEl = document.createElement('div');
+            userEl.className = 'online-user-item';
+            userEl.onclick = () => openChat(user);
+
+            userEl.innerHTML = `
+                <div class="online-user-avatar">
+                    <img src="${user.photoURL || 'https://via.placeholder.com/32'}" alt="${user.displayName}">
+                    <div class="online-indicator"></div>
+                </div>
+                <div style="flex: 1; min-width: 0;">
+                    <div style="font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+                        ${user.displayName}
+                    </div>
+                    <div style="font-size: 12px; color: var(--color-text-secondary);">
+                        ${user.status || 'Online'}
+                    </div>
+                </div>
+            `;
+
+            DOMElements.onlineUsersList.appendChild(userEl);
+        });
+    };
+
+    // --- Enhanced Posts System ---
+    const createPost = async () => {
+        const text = DOMElements.postInput.value.trim();
+        if (!text || !currentUser) return;
+
+        try {
+            await addDoc(collection(db, 'posts'), {
+                text,
+                author: currentUser.displayName,
+                authorId: currentUser.uid,
+                authorAvatar: currentUser.photoURL || 'https://via.placeholder.com/40',
+                likes: [],
+                comments: [],
+                createdAt: serverTimestamp()
+            });
+
+            DOMElements.postInput.value = '';
+            showToast('Post created successfully!');
+        } catch (error) {
+            console.error('Error creating post:', error);
+            showToast('Failed to create post', 'error');
+        }
+    };
+
+    const listenForPosts = () => {
+        if (postsListener) postsListener();
+
+        const q = query(
+            collection(db, 'posts'),
+            orderBy('createdAt', 'desc'),
+            limit(20)
+        );
+
+        postsListener = onSnapshot(q, snapshot => {
+            const posts = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+            renderPosts(posts);
+        });
+    };
+
+    const renderPosts = (posts) => {
+        DOMElements.postsContainer.innerHTML = '';
+
+        posts.forEach(post => {
+            const postEl = document.createElement('article');
+            postEl.className = 'post card';
+
+            const isLiked = post.likes?.includes(currentUser.uid);
+            const likeCount = post.likes?.length || 0;
+            const commentCount = post.comments?.length || 0;
+
+            postEl.innerHTML = `
+                <div class="post-header">
+                    <div class="post-author-info">
+                        <img src="${post.authorAvatar}" alt="${post.author}" class="user-avatar">
+                        <div>
+                            <div style="font-weight: 600;">${post.author}</div>
+                            <div style="font-size: 12px; color: var(--color-text-secondary);">${formatTime(post.createdAt)}</div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div style="margin: 12px 0;">${post.text}</div>
+                
+                <div class="post-stats">
+                    <span>${likeCount} likes</span>
+                    <span>${commentCount} comments</span>
+                </div>
+                
+                <div class="post-actions">
+                    <button class="post-action ${isLiked ? 'liked' : ''}" onclick="toggleLike('${post.id}')">
+                        ${isLiked ? '❤️' : '🤍'} Like
+                    </button>
+                    <button class="post-action" onclick="toggleComments('${post.id}')">
+                        💬 Comment
+                    </button>
+                    <button class="post-action">
+                        🔗 Share
+                    </button>
+                </div>
+                
+                <div id="comments-${post.id}" class="comments hidden">
+                    <div class="comment-form">
+                        <input type="text" class="comment-input" placeholder="Write a comment..." onkeypress="if(event.key==='Enter') addComment('${post.id}', this.value); this.value='';">
+                        <button class="btn-secondary" onclick="addComment('${post.id}', document.querySelector('#comments-${post.id} .comment-input').value)">Post</button>
+                    </div>
+                    <div class="comments-list">
+                        ${post.comments?.map(comment => `
+                            <div class="comment-item">
+                                <img src="${comment.authorAvatar}" alt="${comment.author}" class="comment-avatar">
+                                <div class="comment-body">
+                                    <strong>${comment.author}</strong> ${comment.text}
+                                    <div style="font-size: 10px; color: var(--color-text-secondary); margin-top: 4px;">${formatTime(comment.createdAt)}</div>
+                                </div>
+                            </div>
+                        `).join('') || ''}
+                    </div>
+                </div>
+            `;
+
+            DOMElements.postsContainer.appendChild(postEl);
+        });
+    };
+
+    // Global functions for post interactions
+    window.toggleLike = async (postId) => {
+        try {
+            const postRef = doc(db, 'posts', postId);
+            const postSnap = await getDoc(postRef);
+            const post = postSnap.data();
+
+            const isLiked = post.likes?.includes(currentUser.uid);
+
+            if (isLiked) {
+                await updateDoc(postRef, {
+                    likes: arrayRemove(currentUser.uid)
+                });
+            } else {
+                await updateDoc(postRef, {
+                    likes: arrayUnion(currentUser.uid)
+                });
+                // Send notification to post author
+                if (post.authorId !== currentUser.uid) {
+                    await createNotification(post.authorId, 'like', null, postId);
+                }
+            }
+        } catch (error) {
+            console.error('Error toggling like:', error);
+        }
+    };
+
+    window.toggleComments = (postId) => {
+        const commentsEl = document.getElementById(`comments-${postId}`);
+        commentsEl.classList.toggle('hidden');
+    };
+
+    window.addComment = async (postId, text) => {
+        if (!text.trim()) return;
+
+        try {
+            const comment = {
+                text: text.trim(),
+                author: currentUser.displayName,
+                authorId: currentUser.uid,
+                authorAvatar: currentUser.photoURL || 'https://via.placeholder.com/32',
+                createdAt: serverTimestamp()
+            };
+
+            const postRef = doc(db, 'posts', postId);
+            await updateDoc(postRef, {
+                comments: arrayUnion(comment)
+            });
+
+            // Send notification to post author
+            const postSnap = await getDoc(postRef);
+            const post = postSnap.data();
+            if (post.authorId !== currentUser.uid) {
+                await createNotification(post.authorId, 'comment', text.trim(), postId);
+            }
+
+            // Clear input
+            const input = document.querySelector(`#comments-${postId} .comment-input`);
+            if (input) input.value = '';
+
+        } catch (error) {
+            console.error('Error adding comment:', error);
+        }
+    };
+
+    // --- Authentication System ---
+    const handleAuth = () => {
+        onAuthStateChanged(auth, async (user) => {
+            if (user) {
+                currentUser = user;
+                DOMElements.loginModal.classList.add('hidden');
+
+                // Update UI
+                const avatarUrl = user.photoURL || 'https://via.placeholder.com/40';
+                DOMElements.userAvatar.src = avatarUrl;
+                DOMElements.sidebarAvatar.src = avatarUrl;
+                DOMElements.composerAvatar.src = avatarUrl;
+                DOMElements.profileName.textContent = user.displayName || 'Anonymous User';
+                DOMElements.status.textContent = 'Online';
+
+                // Set user as online
+                await setDoc(doc(db, 'users', user.uid), {
+                    displayName: user.displayName,
+                    email: user.email,
+                    photoURL: user.photoURL,
+                    isOnline: true,
+                    lastSeen: serverTimestamp(),
+                    status: 'Online'
+                }, { merge: true });
+
+                // Start listening for data
+                listenForPosts();
+                listenForOnlineUsers();
+                listenForNotifications();
+
+                // Apply saved theme
+                const savedTheme = localStorage.getItem('theme') || 'light';
+                applyTheme(savedTheme);
+            } else {
+                currentUser = null;
+                DOMElements.loginModal.classList.remove('hidden');
+                
+                // Clean up listeners
+                if (postsListener) postsListener();
+                if (usersListener) usersListener();
+                if (chatListener) chatListener();
+                if (typingListener) typingListener();
+                if (notificationsListener) notificationsListener();
+            }
+        });
+    };
+
+    // --- Drag & Drop Chat Window ---
+    const makeChatDraggable = () => {
+        let isDown = false;
+        let offset = [0, 0];
+
+        DOMElements.chatHeader.addEventListener('mousedown', (e) => {
+            isDown = true;
+            isDragging = false;
+            offset = [
+                DOMElements.chatContainer.offsetLeft - e.clientX,
+                DOMElements.chatContainer.offsetTop - e.clientY
+            ];
+        });
+
+        document.addEventListener('mouseup', () => {
+            isDown = false;
+            setTimeout(() => isDragging = false, 100);
+        });
+
+        document.addEventListener('mousemove', (e) => {
+            if (isDown) {
+                isDragging = true;
+                const x = e.clientX + offset[0];
+                const y = e.clientY + offset[1];
+                
+                // Constrain to viewport
+                const maxX = window.innerWidth - DOMElements.chatContainer.offsetWidth;
+                const maxY = window.innerHeight - DOMElements.chatContainer.offsetHeight;
+                
+                DOMElements.chatContainer.style.left = Math.max(0, Math.min(x, maxX)) + 'px';
+                DOMElements.chatContainer.style.top = Math.max(0, Math.min(y, maxY)) + 'px';
+                DOMElements.chatContainer.style.right = 'auto';
+                DOMElements.chatContainer.style.bottom = 'auto';
+            }
+        });
+    };
+
+    // --- Event Listeners ---
+    const setupEventListeners = () => {
+        // Authentication
+        document.getElementById('loginForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const email = document.getElementById('loginEmail').value;
+            const password = document.getElementById('loginPassword').value;
+
+            try {
+                await signInWithEmailAndPassword(auth, email, password);
+                showToast('Welcome back!');
+            } catch (error) {
+                showToast(error.message, 'error');
+            }
+        });
+
+        document.getElementById('signupForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const name = document.getElementById('signupName').value;
+            const email = document.getElementById('signupEmail').value;
+            const password = document.getElementById('signupPassword').value;
+
+            try {
+                const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+                await updateProfile(userCredential.user, { displayName: name });
+                showToast('Account created successfully!');
+            } catch (error) {
+                showToast(error.message, 'error');
+            }
+        });
+
+        // Auth form toggle
+        document.getElementById('showSignup').addEventListener('click', (e) => {
+            e.preventDefault();
+            document.getElementById('loginForm').classList.add('hidden');
+            document.getElementById('signupForm').classList.remove('hidden');
+        });
+
+        document.getElementById('showLogin').addEventListener('click', (e) => {
+            e.preventDefault();
+            document.getElementById('signupForm').classList.add('hidden');
+            document.getElementById('loginForm').classList.remove('hidden');
+        });
+
+        // Logout
+        DOMElements.logoutBtn.addEventListener('click', async () => {
+            await updateUserPresence(false);
+            await signOut(auth);
+        });
+
+        // Posts
+        DOMElements.postButton.addEventListener('click', createPost);
+        DOMElements.postInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter' && e.ctrlKey) createPost();
+        });
+
+        // Theme toggle
+        DOMElements.themeToggle.addEventListener('click', toggleTheme);
+
+        // Notifications toggle
+        DOMElements.notificationsToggle.addEventListener('click', () => {
+            DOMElements.notificationsPanel.classList.toggle('hidden');
+        });
+
+        // Chat
+        DOMElements.closeChatBtn.addEventListener('click', () => {
+            DOMElements.chatModal.classList.add('hidden');
+            if (chatListener) chatListener();
+            if (typingListener) typingListener();
+            currentChatUser = null;
+        });
+
+        DOMElements.chatInputForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+            const text = DOMElements.chatInput.value.trim();
+            if (text) sendMessage(text);
+        });
+
+        // Chat typing indicator
+        DOMElements.chatInput.addEventListener('input', () => {
+            sendTypingIndicator();
+            
+            clearTimeout(typingTimer);
+            typingTimer = setTimeout(() => {
+                clearTypingIndicator();
+            }, 3000);
+        });
+
+        // Profile picture change
+        DOMElements.changeAvatarBtn.addEventListener('click', () => {
+            DOMElements.avatarModal.classList.remove('hidden');
+        });
+
+        DOMElements.cancelAvatarBtn.addEventListener('click', () => {
+            DOMElements.avatarModal.classList.add('hidden');
+        });
+
+        DOMElements.uploadAvatarBtn.addEventListener('click', async () => {
+            const file = DOMElements.avatarInput.files[0];
+            if (!file) {
+                showToast('Please select an image', 'warning');
+                return;
+            }
+
+            try {
+                showToast('Uploading...', 'warning');
+                const photoURL = await uploadProfilePicture(file);
+                
+                // Update UI
+                DOMElements.userAvatar.src = photoURL;
+                DOMElements.sidebarAvatar.src = photoURL;
+                DOMElements.composerAvatar.src = photoURL;
+                
+                DOMElements.avatarModal.classList.add('hidden');
+                showToast('Profile picture updated!');
+            } catch (error) {
+                showToast('Failed to update profile picture', 'error');
+            }
+        });
+
+        // Chat image sharing
+        DOMElements.chatImageBtn.addEventListener('click', () => {
+            DOMElements.chatImageInput.click();
+        });
+
+        DOMElements.chatImageInput.addEventListener('change', async (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            try {
+                showToast('Uploading image...', 'warning');
+                const imageUrl = await uploadChatImage(file);
+                await sendMessage('', imageUrl);
+                e.target.value = ''; // Reset input
+            } catch (error) {
+                showToast('Failed to upload image', 'error');
+            }
+        });
+
+        // Close panels when clicking outside
+        document.addEventListener('click', (e) => {
+            if (!e.target.closest('.notification-wrapper')) {
+                DOMElements.notificationsPanel.classList.add('hidden');
+            }
+        });
+
+        // Prevent chat from closing when dragging
+        DOMElements.chatContainer.addEventListener('click', (e) => {
+            if (isDragging) e.stopPropagation();
+        });
+    };
+
+    // --- Initialize App ---
+    const initializeApp = () => {
+        // Apply saved theme
+        const savedTheme = localStorage.getItem('theme') || 'light';
+        applyTheme(savedTheme);
+
+        // Set up event listeners
+        setupEventListeners();
+
+        // Make chat draggable
+        makeChatDraggable();
+
+        // Handle authentication state
+        handleAuth();
+
+        // Handle page visibility for presence
+        document.addEventListener('visibilitychange', () => {
+            if (currentUser) {
+                updateUserPresence(!document.hidden);
+            }
+        });
+
+        // Handle page unload
+        window.addEventListener('beforeunload', () => {
+            if (currentUser) {
+                updateUserPresence(false);
+            }
+        });
+    };
+
+    // Start the app
+    initializeApp();
 });
-
