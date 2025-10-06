@@ -203,7 +203,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
             clearTypingIndicator();
             await createNotification(currentChatUser.id, 'message', text.trim() || '📷 Image');
-            DOMElements.chatInput.value = '';
         } catch (error) {
             console.error('Error sending message:', error);
             showToast('Failed to send message', 'error');
@@ -650,12 +649,37 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('showSignup').addEventListener('click', (e) => { e.preventDefault(); document.getElementById('loginForm').classList.add('hidden'); document.getElementById('signupForm').classList.remove('hidden'); });
         document.getElementById('showLogin').addEventListener('click', (e) => { e.preventDefault(); document.getElementById('signupForm').classList.add('hidden'); document.getElementById('loginForm').classList.remove('hidden'); });
         DOMElements.logoutBtn.addEventListener('click', async () => { await updateUserPresence(false); await signOut(auth); });
+        
+        // Post creation with Enter key
         DOMElements.postButton.addEventListener('click', createPost);
-        DOMElements.postInput.addEventListener('keypress', (e) => { if (e.key === 'Enter' && e.ctrlKey) createPost(); });
+        DOMElements.postInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                createPost();
+            }
+        });
+        
         DOMElements.themeToggle.addEventListener('click', toggleTheme);
         DOMElements.notificationsToggle.addEventListener('click', () => DOMElements.notificationsPanel.classList.toggle('hidden'));
         DOMElements.closeChatBtn.addEventListener('click', () => { DOMElements.chatModal.classList.add('hidden'); if (chatListener) chatListener(); if (typingListener) typingListener(); currentChatUser = null; });
-        DOMElements.chatInputForm.addEventListener('submit', (e) => { e.preventDefault(); sendMessage(DOMElements.chatInput.value.trim()); });
+        
+        // Chat form submission and input clearing
+        DOMElements.chatInputForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+            const text = DOMElements.chatInput.value.trim();
+            if (text) {
+                sendMessage(text);
+                DOMElements.chatInput.value = ''; // Clear input immediately
+            }
+        });
+
+        DOMElements.chatInput.addEventListener('keypress', (e) => {
+             if (e.key === 'Enter') {
+                e.preventDefault();
+                DOMElements.chatInputForm.requestSubmit();
+            }
+        });
+
         DOMElements.chatInput.addEventListener('input', () => { sendTypingIndicator(); clearTimeout(typingTimer); typingTimer = setTimeout(clearTypingIndicator, 3000); });
         DOMElements.changeAvatarBtn.addEventListener('click', () => DOMElements.avatarModal.classList.remove('hidden'));
         DOMElements.cancelAvatarBtn.addEventListener('click', () => DOMElements.avatarModal.classList.add('hidden'));
