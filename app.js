@@ -465,8 +465,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 </div>
                 <div id="comments-${post.id}" class="comments hidden">
                     <form class="comment-form" data-post-id="${post.id}">
-                        <input type="text" class="comment-input" placeholder="Write a comment...">
-                        <button type="submit" class="btn-secondary">Post</button>
+                        <input type="text" class="comment-input" placeholder="Write a comment..." oninput="this.nextElementSibling.disabled = !this.value.trim()">
+                        <button type="submit" class="btn-secondary" disabled>Post</button>
                     </form>
                     <div class="comments-list">
                         ${(Array.isArray(post.comments) ? post.comments : []).sort((a,b) => b.createdAt - a.createdAt).map(c => `
@@ -486,8 +486,10 @@ document.addEventListener('DOMContentLoaded', () => {
         if(e.target.classList.contains('comment-form')) {
             e.preventDefault();
             const input = e.target.querySelector('.comment-input');
-            addComment(e.target.dataset.postId, input.value);
+            const button = e.target.querySelector('button[type="submit"]');
+            addComment(e.target.dataset.postId, input.value, button);
             input.value = '';
+            button.disabled = true;
         }
     });
 
@@ -506,8 +508,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
     window.toggleComments = (postId) => document.getElementById(`comments-${postId}`).classList.toggle('hidden');
 
-    window.addComment = async (postId, text) => {
-        if (!text.trim()) return;
+    window.addComment = async (postId, text, buttonElement) => {
+        if (!text.trim() || !buttonElement) return;
+
+        buttonElement.disabled = true;
+        buttonElement.textContent = 'Posting...';
+
         const comment = {
             text: text.trim(),
             author: currentUser.displayName,
@@ -526,6 +532,8 @@ document.addEventListener('DOMContentLoaded', () => {
         } catch (error) {
             console.error("Error adding comment: ", error);
             showToast("Could not post comment.", "error");
+            buttonElement.disabled = false;
+            buttonElement.textContent = 'Post';
         }
     };
     
@@ -548,7 +556,6 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         } catch (err) {
             console.error("Share failed:", err);
-            // Fallback to copying link
             try {
                 await navigator.clipboard.writeText(postUrl);
                 showToast('Post link copied to clipboard!', 'success');
