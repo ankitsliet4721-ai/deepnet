@@ -361,29 +361,46 @@ document.addEventListener('DOMContentLoaded', () => {
         catch (e) { console.error('Error marking notification as read:', e); }
     };
 
-    // --- Enhanced Online Users ---
-    const listenForOnlineUsers = () => {
+    // --- User List Logic ---
+    const listenForAllUsers = () => {
         if (usersListener) usersListener();
-        const q = query(collection(db, 'users'), where('isOnline', '==', true), limit(20));
-        usersListener = onSnapshot(q, snapshot => {
-            const users = snapshot.docs.map(d => ({ id: d.id, ...d.data() })).filter(user => user.id !== currentUser.uid);
-            renderOnlineUsers(users);
-        });
+        const q = query(collection(db, 'users'), orderBy('lastSeen', 'desc'), limit(50));
+        usersListener = onSnapshot(q, 
+            (snapshot) => {
+                const users = snapshot.docs
+                    .map(d => ({ id: d.id, ...d.data() }))
+                    .filter(user => user.id !== currentUser.uid);
+                renderAllUsers(users);
+            },
+            (error) => {
+                console.error("Error fetching users. This is likely due to a missing Firestore index.", error);
+                showToast("Could not load user list. A database index is required.", "error");
+            }
+        );
     };
 
-    const renderOnlineUsers = (users) => {
+    const renderAllUsers = (users) => {
         DOMElements.onlineUsersList.innerHTML = '';
+        DOMElements.onlineUsersList.parentElement.querySelector('h4').textContent = 'All Users';
+        if (users.length === 0) {
+            DOMElements.onlineUsersList.innerHTML = '<p style="color: var(--color-text-secondary); font-size: 12px;">No other users found.</p>';
+            return;
+        }
         users.forEach(user => {
             const userEl = document.createElement('div');
             userEl.className = 'online-user-item';
+            
+            const statusIndicatorClass = user.isOnline ? 'online-indicator' : 'offline-indicator';
+            const statusText = user.isOnline ? 'Online' : `Last seen: ${formatTime(user.lastSeen)}`;
+
             userEl.innerHTML = `
                 <div class="online-user-avatar">
                     <img src="${user.photoURL || genericAvatar}" alt="${user.displayName}" onerror="this.src='${genericAvatar}'">
-                    <div class="online-indicator"></div>
+                    <div class="${statusIndicatorClass}"></div>
                 </div>
                 <div style="flex: 1; min-width: 0;">
                     <div style="font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${user.displayName}</div>
-                    <div style="font-size: 12px; color: var(--color-text-secondary);">${user.status || 'Online'}</div>
+                    <div style="font-size: 12px; color: var(--color-text-secondary);">${statusText}</div>
                 </div>
             `;
             userEl.onclick = () => openChat(user);
@@ -420,14 +437,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const renderPosts = (posts) => {
         DOMElements.postsContainer.innerHTML = posts.map(post => {
-            // FIX: More robustly ensure post.likes is an array.
             const postLikes = Array.isArray(post.likes) ? post.likes : [];
             const isLiked = postLikes.includes(currentUser.uid);
             const likeCount = postLikes.length;
             const commentCount = Array.isArray(post.comments) ? post.comments.length : 0;
 
             return `
-            <article class="post card">
+            <article class="post card" id="post-${post.id}">
                 <div class="post-header">
                     <div class="post-author-info">
                         <img src="${post.authorAvatar}" alt="${post.author}" class="user-avatar" onerror="this.src='${genericAvatar}'">
@@ -437,7 +453,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         </div>
                     </div>
                 </div>
-                <div style="margin: 12px 0;">${post.text}</div>
+                <div class="post-content" style="margin: 12px 0;">${post.text}</div>
                 <div class="post-stats">
                     <span>${likeCount} likes</span>
                     <span>${commentCount} comments</span>
@@ -445,7 +461,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 <div class="post-actions">
                     <button class="post-action ${isLiked ? 'liked' : ''}" onclick="toggleLike('${post.id}')">${isLiked ? '❤️' : '🤍'} Like</button>
                     <button class="post-action" onclick="toggleComments('${post.id}')">💬 Comment</button>
-                    <button class="post-action">🔗 Share</button>
+                    <button class="post-action" onclick="sharePost('${post.id}')">🔗 Share</button>
                 </div>
                 <div id="comments-${post.id}" class="comments hidden">
                     <form class="comment-form" data-post-id="${post.id}">
@@ -480,7 +496,6 @@ document.addEventListener('DOMContentLoaded', () => {
         const postSnap = await getDoc(postRef);
         if(!postSnap.exists()) return;
         const post = postSnap.data();
-        // FIX: More robustly ensure post.likes is an array.
         const postLikes = Array.isArray(post.likes) ? post.likes : [];
         const isLiked = postLikes.includes(currentUser.uid);
         await updateDoc(postRef, { likes: isLiked ? arrayRemove(currentUser.uid) : arrayUnion(currentUser.uid) });
@@ -488,7 +503,9 @@ document.addEventListener('DOMContentLoaded', () => {
             await createNotification(post.authorId, 'like', null, postId);
         }
     };
+
     window.toggleComments = (postId) => document.getElementById(`comments-${postId}`).classList.toggle('hidden');
+
     window.addComment = async (postId, text) => {
         if (!text.trim()) return;
         const comment = {
@@ -498,19 +515,54 @@ document.addEventListener('DOMContentLoaded', () => {
             authorAvatar: currentUser.photoURL || genericAvatar,
             createdAt: serverTimestamp()
         };
-        const postRef = doc(db, 'posts', postId);
-        await updateDoc(postRef, { comments: arrayUnion(comment) });
-        const postSnap = await getDoc(postRef);
-        const post = postSnap.data();
-        if (post.authorId !== currentUser.uid) {
-            await createNotification(post.authorId, 'comment', text.trim(), postId);
+        try {
+            const postRef = doc(db, 'posts', postId);
+            await updateDoc(postRef, { comments: arrayUnion(comment) });
+            const postSnap = await getDoc(postRef);
+            const post = postSnap.data();
+            if (post.authorId !== currentUser.uid) {
+                await createNotification(post.authorId, 'comment', text.trim(), postId);
+            }
+        } catch (error) {
+            console.error("Error adding comment: ", error);
+            showToast("Could not post comment.", "error");
+        }
+    };
+    
+    window.sharePost = async (postId) => {
+        const postElement = document.getElementById(`post-${postId}`);
+        const postContent = postElement?.querySelector('.post-content')?.textContent || '';
+        const postUrl = `${window.location.href}#post-${postId}`;
+        
+        const shareData = {
+            title: 'Check out this post on DeepNet Social!',
+            text: `"${postContent}"`,
+            url: postUrl,
+        };
+
+        try {
+            if (navigator.share) {
+                await navigator.share(shareData);
+            } else {
+                throw new Error("Web Share API not supported");
+            }
+        } catch (err) {
+            console.error("Share failed:", err);
+            // Fallback to copying link
+            try {
+                await navigator.clipboard.writeText(postUrl);
+                showToast('Post link copied to clipboard!', 'success');
+            } catch (copyErr) {
+                console.error("Copy failed:", copyErr);
+                showToast('Could not share or copy link.', 'error');
+            }
         }
     };
 
     // --- Authentication System ---
     const handleAuth = () => {
         onAuthStateChanged(auth, async (user) => {
-            if (user) {
+            if (user && user.emailVerified) {
                 currentUser = user;
                 DOMElements.loginModal.classList.add('hidden');
                 const avatarUrl = user.photoURL || genericAvatar;
@@ -524,10 +576,14 @@ document.addEventListener('DOMContentLoaded', () => {
                 }, { merge: true });
 
                 listenForPosts();
-                listenForOnlineUsers();
+                listenForAllUsers();
                 listenForNotifications();
                 applyTheme(localStorage.getItem('theme') || 'light');
             } else {
+                if (user && !user.emailVerified) {
+                    showToast('Please verify your email before logging in.', 'warning');
+                    signOut(auth);
+                }
                 currentUser = null;
                 DOMElements.loginModal.classList.remove('hidden');
                 [postsListener, usersListener, chatListener, typingListener, notificationsListener].forEach(l => l && l());
@@ -564,13 +620,7 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('loginForm').addEventListener('submit', async (e) => {
             e.preventDefault();
             try {
-                const userCredential = await signInWithEmailAndPassword(auth, document.getElementById('loginEmail').value, document.getElementById('loginPassword').value);
-                if (!userCredential.user.emailVerified) {
-                    showToast('Please verify your email before logging in.', 'warning');
-                    await signOut(auth);
-                    return;
-                }
-                showToast('Welcome back!');
+                await signInWithEmailAndPassword(auth, document.getElementById('loginEmail').value, document.getElementById('loginPassword').value);
             } catch (error) { showToast(error.message, 'error'); }
         });
 
@@ -583,8 +633,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 const cred = await createUserWithEmailAndPassword(auth, email, password);
                 await updateProfile(cred.user, { displayName: name });
                 await sendEmailVerification(cred.user);
-                showToast('Account created! Please check your email to verify your account.');
+                showToast('Account created! Please check your email to verify your account.', 'success');
                 await signOut(auth);
+                document.getElementById('signupForm').classList.add('hidden');
+                document.getElementById('loginForm').classList.remove('hidden');
             } catch (error) { showToast(error.message, 'error'); }
         });
         
