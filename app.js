@@ -226,9 +226,10 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!currentChatUser || !currentUser) return;
         const chatId = getChatId(currentUser.uid, currentChatUser.id);
         try {
-            await updateDoc(doc(db, 'typing', chatId), {
-                [`${currentUser.uid}`]: null
-            });
+            // Use setDoc with merge to avoid errors if the document or field doesn't exist
+            await setDoc(doc(db, 'typing', chatId), {
+                [currentUser.uid]: null
+            }, { merge: true });
         } catch (error) { console.error('Error clearing typing indicator:', error); }
     };
     
