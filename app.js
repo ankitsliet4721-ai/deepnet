@@ -419,10 +419,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const renderPosts = (posts) => {
         DOMElements.postsContainer.innerHTML = posts.map(post => {
-            // FIX: Ensure post.likes is treated as an array to prevent .includes error
-            const isLiked = (post.likes || []).includes(currentUser.uid);
-            const likeCount = (post.likes || []).length;
-            const commentCount = (post.comments || []).length;
+            // FIX: More robustly ensure post.likes is an array.
+            const postLikes = Array.isArray(post.likes) ? post.likes : [];
+            const isLiked = postLikes.includes(currentUser.uid);
+            const likeCount = postLikes.length;
+            const commentCount = Array.isArray(post.comments) ? post.comments.length : 0;
 
             return `
             <article class="post card">
@@ -451,7 +452,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         <button type="submit" class="btn-secondary">Post</button>
                     </form>
                     <div class="comments-list">
-                        ${(post.comments || []).sort((a,b) => b.createdAt - a.createdAt).map(c => `
+                        ${(Array.isArray(post.comments) ? post.comments : []).sort((a,b) => b.createdAt - a.createdAt).map(c => `
                             <div class="comment-item">
                                 <img src="${c.authorAvatar}" alt="${c.author}" class="comment-avatar" onerror="this.src='${genericAvatar}'">
                                 <div class="comment-body">
@@ -478,7 +479,9 @@ document.addEventListener('DOMContentLoaded', () => {
         const postSnap = await getDoc(postRef);
         if(!postSnap.exists()) return;
         const post = postSnap.data();
-        const isLiked = (post.likes || []).includes(currentUser.uid);
+        // FIX: More robustly ensure post.likes is an array.
+        const postLikes = Array.isArray(post.likes) ? post.likes : [];
+        const isLiked = postLikes.includes(currentUser.uid);
         await updateDoc(postRef, { likes: isLiked ? arrayRemove(currentUser.uid) : arrayUnion(currentUser.uid) });
         if (!isLiked && post.authorId !== currentUser.uid) {
             await createNotification(post.authorId, 'like', null, postId);
