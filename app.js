@@ -6,7 +6,8 @@ import {
     signInWithEmailAndPassword, 
     onAuthStateChanged, 
     signOut, 
-    updateProfile 
+    updateProfile,
+    sendEmailVerification
 } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-auth.js";
 import { 
     getFirestore, 
@@ -563,7 +564,12 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('loginForm').addEventListener('submit', async (e) => {
             e.preventDefault();
             try {
-                await signInWithEmailAndPassword(auth, document.getElementById('loginEmail').value, document.getElementById('loginPassword').value);
+                const userCredential = await signInWithEmailAndPassword(auth, document.getElementById('loginEmail').value, document.getElementById('loginPassword').value);
+                if (!userCredential.user.emailVerified) {
+                    showToast('Please verify your email before logging in.', 'warning');
+                    await signOut(auth);
+                    return;
+                }
                 showToast('Welcome back!');
             } catch (error) { showToast(error.message, 'error'); }
         });
@@ -576,7 +582,9 @@ document.addEventListener('DOMContentLoaded', () => {
             try {
                 const cred = await createUserWithEmailAndPassword(auth, email, password);
                 await updateProfile(cred.user, { displayName: name });
-                showToast('Account created successfully!');
+                await sendEmailVerification(cred.user);
+                showToast('Account created! Please check your email to verify your account.');
+                await signOut(auth);
             } catch (error) { showToast(error.message, 'error'); }
         });
         
