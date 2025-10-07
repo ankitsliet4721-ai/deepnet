@@ -529,6 +529,9 @@ document.addEventListener('DOMContentLoaded', () => {
             if (post.authorId !== currentUser.uid) {
                 await createNotification(post.authorId, 'comment', text.trim(), postId);
             }
+            // Reset button on success
+            buttonElement.disabled = false;
+            buttonElement.textContent = 'Post';
         } catch (error) {
             console.error("Error adding comment: ", error);
             showToast("Could not post comment.", "error");
@@ -722,5 +725,4 @@ document.addEventListener('DOMContentLoaded', () => {
 
     startApp();
 });
-
 
