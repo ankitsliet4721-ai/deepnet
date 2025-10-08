@@ -953,17 +953,6 @@ Enhanced Components
     border-radius: var(--radius-full); 
 }
 
-.offline-indicator {
-    position: absolute;
-    bottom: 0;
-    right: 0;
-    width: var(--space-12);
-    height: var(--space-12);
-    background: var(--color-gray-400);
-    border: 2px solid var(--color-surface);
-    border-radius: var(--radius-full);
-}
-
 /* =====================================================================
 Enhanced Chat System
 ===================================================================== */
@@ -1077,7 +1066,6 @@ Enhanced Chat System
     transform: scale(1.02); 
 }
 
-/* --- Typing Indicator Styles --- */
 .typing-indicator { 
     display: flex; 
     align-items: center; 
@@ -1415,7 +1403,6 @@ Modals & Overlays
     position: fixed; 
     bottom: var(--space-20); 
     left: 50%; 
-    transform: translateX(-50%); 
     background-color: var(--color-text); 
     color: var(--color-background); 
     padding: var(--space-12) var(--space-20); 
@@ -1582,4 +1569,3 @@ Responsive Design
         height: 48px;
     }
 }
-
