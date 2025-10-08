@@ -24,7 +24,8 @@ import {
     arrayRemove, 
     setDoc, 
     where, 
-    limit
+    limit,
+    writeBatch
 } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-firestore.js";
 import { 
     getStorage, 
@@ -182,27 +183,38 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- Enhanced Chat System ---
     const sendMessage = async (text = '', imageUrl = '') => {
         if ((!text.trim() && !imageUrl) || !currentChatUser || !currentUser) return;
-
+    
         const chatId = getChatId(currentUser.uid, currentChatUser.id);
         
         try {
-            const messageData = {
+            // Use a batched write to atomically create the chat document and the first message.
+            const batch = writeBatch(db);
+    
+            // 1. Set/update the main chat document
+            const chatDocRef = doc(db, 'chats', chatId);
+            batch.set(chatDocRef, {
+                participants: [currentUser.uid, currentChatUser.id],
+                lastMessage: text.trim() || '📷 Image',
+                lastMessageTime: serverTimestamp()
+            }, { merge: true });
+    
+            // 2. Create the new message document in the subcollection
+            const messageDocRef = doc(collection(db, 'chats', chatId, 'messages'));
+            batch.set(messageDocRef, {
                 text: text.trim(),
                 imageUrl: imageUrl || '',
                 senderId: currentUser.uid,
                 senderName: currentUser.displayName,
                 senderAvatar: currentUser.photoURL || genericAvatar,
                 timestamp: serverTimestamp()
-            };
-            await addDoc(collection(db, 'chats', chatId, 'messages'), messageData);
-            await setDoc(doc(db, 'chats', chatId), {
-                participants: [currentUser.uid, currentChatUser.id],
-                lastMessage: text.trim() || '📷 Image',
-                lastMessageTime: serverTimestamp()
-            }, { merge: true });
-
+            });
+    
+            // Commit the batch
+            await batch.commit();
+    
             clearTypingIndicator();
             await createNotification(currentChatUser.id, 'message', text.trim() || '📷 Image');
+    
         } catch (error) {
             console.error('Error sending message:', error);
             showToast('Failed to send message', 'error');
@@ -725,5 +737,4 @@ document.addEventListener('DOMContentLoaded', () => {
 
     startApp();
 });
-
 
