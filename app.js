@@ -738,4 +738,3 @@ document.addEventListener('DOMContentLoaded', () => {
     startApp();
 });
 
-
