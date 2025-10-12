@@ -1,4 +1,4 @@
-// --- Enhanced Firebase Imports with Emergency Reset ---
+// --- Enhanced Firebase Imports with Storage ---
 import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-app.js";
 import { 
     getAuth, 
@@ -6,8 +6,8 @@ import {
     signInWithEmailAndPassword, 
     onAuthStateChanged, 
     signOut, 
-    sendEmailVerification,
-    updateProfile 
+    updateProfile,
+    sendEmailVerification
 } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-auth.js";
 import { 
     getFirestore, 
@@ -15,7 +15,6 @@ import {
     addDoc, 
     doc, 
     getDoc, 
-    deleteDoc, 
     updateDoc, 
     query, 
     orderBy, 
@@ -23,186 +22,21 @@ import {
     serverTimestamp, 
     arrayUnion, 
     arrayRemove, 
-    increment, 
     setDoc, 
     where, 
-    limit, 
-    getDocs 
+    limit,
+    writeBatch
 } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-firestore.js";
 import { 
     getStorage, 
     ref, 
     uploadBytes, 
-    getDownloadURL,
-    deleteObject 
+    getDownloadURL
 } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-storage.js";
-
-// --- Emergency Reset Function (Must be defined first) ---
-const emergencyReset = () => {
-    console.log('Emergency reset triggered');
-    
-    // Hide all modals
-    const modals = ['loginModal', 'chatModal', 'avatarModal', 'notificationsPanel'];
-    modals.forEach(modalId => {
-        const modal = document.getElementById(modalId);
-        if (modal) {
-            modal.classList.add('hidden');
-            modal.style.display = 'none';
-        }
-    });
-    
-    // Clear all backdrop elements
-    document.querySelectorAll('.modal-backdrop').forEach(backdrop => {
-        backdrop.classList.add('hidden');
-        backdrop.style.display = 'none';
-    });
-    
-    // Re-enable body scrolling
-    document.body.style.overflow = '';
-    document.documentElement.style.overflow = '';
-    
-    // Hide loading indicator
-    const loading = document.getElementById('loadingIndicator');
-    if (loading) loading.classList.add('hidden');
-    
-    // Hide emergency button
-    const emergencyBtn = document.getElementById('emergencyReset');
-    if (emergencyBtn) emergencyBtn.style.display = 'none';
-    
-    // Force show the main app
-    const app = document.getElementById('app');
-    if (app) {
-        app.style.display = 'grid';
-        app.style.visibility = 'visible';
-    }
-    
-    showToast('Interface reset successful', 'success');
-};
-
-// --- Utility Functions (Must be defined before use) ---
-const showToast = (message, type = 'success') => {
-    const notification = document.getElementById('notification');
-    if (notification) {
-        notification.textContent = message;
-        notification.className = `toast-notification ${type} show`;
-        setTimeout(() => notification.classList.remove('show'), 3000);
-    }
-};
-
-const showError = (message) => {
-    console.error('Error:', message);
-    const authError = document.getElementById('authError');
-    if (authError) {
-        authError.textContent = message;
-        authError.classList.remove('hidden');
-        setTimeout(() => authError.classList.add('hidden'), 5000);
-    }
-    showToast(message, 'error');
-};
-
-const hideError = () => {
-    const authError = document.getElementById('authError');
-    if (authError) {
-        authError.classList.add('hidden');
-    }
-};
-
-const showLoading = () => {
-    const loadingIndicator = document.getElementById('loadingIndicator');
-    if (loadingIndicator) {
-        loadingIndicator.classList.remove('hidden');
-    }
-};
-
-const hideLoading = () => {
-    const loadingIndicator = document.getElementById('loadingIndicator');
-    if (loadingIndicator) {
-        loadingIndicator.classList.add('hidden');
-    }
-};
-
-const formatTime = (timestamp) => {
-    if (!timestamp) return '';
-    
-    let date;
-    if (timestamp.toDate) {
-        date = timestamp.toDate();
-    } else if (timestamp instanceof Date) {
-        date = timestamp;
-    } else {
-        return '';
-    }
-
-    const now = new Date();
-    const diff = now - date;
-    
-    if (diff < 60000) return 'Just now';
-    if (diff < 3600000) return `${Math.floor(diff / 60000)}m ago`;
-    if (diff < 86400000) return `${Math.floor(diff / 3600000)}h ago`;
-    
-    return date.toLocaleDateString('en-US', { 
-        month: 'short', 
-        day: 'numeric' 
-    });
-};
-
-const getChatId = (uid1, uid2) => [uid1, uid2].sort().join('_');
-
-const applyTheme = (theme) => {
-    document.documentElement.setAttribute('data-color-scheme', theme);
-    const themeToggle = document.getElementById('themeToggle');
-    if (themeToggle) {
-        themeToggle.textContent = theme === 'dark' ? '☀️' : '🌙';
-    }
-    localStorage.setItem('theme', theme);
-};
-
-const toggleTheme = () => {
-    const currentTheme = document.documentElement.getAttribute('data-color-scheme') || 'light';
-    const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
-    applyTheme(newTheme);
-};
-
-// --- Modal Management Functions ---
-const closeAllModals = () => {
-    const modals = ['loginModal', 'chatModal', 'avatarModal'];
-    modals.forEach(modalId => {
-        const modal = document.getElementById(modalId);
-        if (modal) {
-            modal.classList.add('hidden');
-        }
-    });
-    
-    // Hide notification panel
-    const notificationsPanel = document.getElementById('notificationsPanel');
-    if (notificationsPanel) {
-        notificationsPanel.classList.add('hidden');
-    }
-};
-
-const openModal = (modalId) => {
-    closeAllModals(); // Close other modals first
-    const modal = document.getElementById(modalId);
-    if (modal) {
-        modal.classList.remove('hidden');
-    }
-};
 
 // --- App Initialization wrapped in DOMContentLoaded to prevent race conditions ---
 document.addEventListener('DOMContentLoaded', () => {
-    console.log('DOM loaded, initializing app...');
-
-    // Show emergency reset button for 10 seconds
-    const emergencyBtn = document.getElementById('emergencyReset');
-    if (emergencyBtn) {
-        emergencyBtn.style.display = 'block';
-        emergencyBtn.onclick = emergencyReset;
-        setTimeout(() => {
-            emergencyBtn.style.display = 'none';
-        }, 10000);
-    }
-
-    // --- Firebase Configuration & Initialization ---
+    // --- Your web app's Firebase configuration ---
     const firebaseConfig = {
         apiKey: "AIzaSyALLWz-xkvroabNu_ug6ZVdDEmNF3O2eJs",
         authDomain: "deep-9656b.firebaseapp.com",
@@ -213,19 +47,11 @@ document.addEventListener('DOMContentLoaded', () => {
         measurementId: "G-FWC45EBFFP"
     };
 
-    let app, auth, db, storage;
-    
-    try {
-        app = initializeApp(firebaseConfig);
-        auth = getAuth(app);
-        db = getFirestore(app);
-        storage = getStorage(app);
-        console.log('Firebase initialized successfully');
-    } catch (error) {
-        console.error('Firebase initialization error:', error);
-        showError('Failed to initialize app. Please refresh the page.');
-        return;
-    }
+    // --- Firebase Initialization ---
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    const db = getFirestore(app);
+    const storage = getStorage(app);
 
     // --- Global State ---
     let currentUser = null;
@@ -233,11 +59,11 @@ document.addEventListener('DOMContentLoaded', () => {
     let currentChatUser = null;
     let typingTimer = null;
     let isDragging = false;
+    const genericAvatar = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' fill='%23ddd'/%3E%3Ctext x='50' y='55' font-family='Arial' font-size='40' fill='%23888' text-anchor='middle' dominant-baseline='middle'%3E👤%3C/text%3E%3C/svg%3E";
 
     // --- DOM Element Cache (Initialized safely after DOM is loaded) ---
     const DOMElements = {
         html: document.documentElement,
-        app: document.getElementById('app'),
         loginModal: document.getElementById('loginModal'),
         userAvatar: document.getElementById('userAvatar'),
         sidebarAvatar: document.getElementById('sidebarAvatar'),
@@ -274,20 +100,36 @@ document.addEventListener('DOMContentLoaded', () => {
         cancelAvatarBtn: document.getElementById('cancelAvatarBtn'),
         chatImageBtn: document.getElementById('chatImageBtn'),
         chatImageInput: document.getElementById('chatImageInput'),
-        logoutBtn: document.getElementById('logoutBtn'),
-        loginForm: document.getElementById('loginForm'),
-        signupForm: document.getElementById('signupForm'),
-        loginEmail: document.getElementById('loginEmail'),
-        loginPassword: document.getElementById('loginPassword'),
-        signupName: document.getElementById('signupName'),
-        signupEmail: document.getElementById('signupEmail'),
-        signupPassword: document.getElementById('signupPassword'),
-        showSignup: document.getElementById('showSignup'),
-        showLogin: document.getElementById('showLogin'),
-        authError: document.getElementById('authError'),
-        loadingIndicator: document.getElementById('loadingIndicator'),
-        closeLoginModal: document.getElementById('closeLoginModal'),
-        closeAvatarModal: document.getElementById('closeAvatarModal')
+        logoutBtn: document.getElementById('logoutBtn')
+    };
+
+    // --- Enhanced Utility Functions ---
+    const showToast = (message, type = 'success') => {
+        DOMElements.notification.textContent = message;
+        DOMElements.notification.className = `toast-notification ${type}`;
+        DOMElements.notification.classList.add('show');
+        setTimeout(() => DOMElements.notification.classList.remove('show'), 3000);
+    };
+
+    const formatTime = (ts) => {
+        if (!ts?.toDate) return 'a moment ago';
+        const d = ts.toDate(), now = new Date(), diff = now - d;
+        if (diff < 60000) return 'Just now';
+        if (diff < 3600000) return `${Math.floor(diff/60000)}m ago`;
+        if (diff < 86400000) return `${Math.floor(diff/3600000)}h ago`;
+        return d.toLocaleDateString('en-US', {day:'numeric', month:'short'});
+    };
+
+    const getChatId = (uid1, uid2) => [uid1, uid2].sort().join('_');
+
+    const applyTheme = (theme) => {
+        DOMElements.html.setAttribute('data-color-scheme', theme);
+        DOMElements.themeToggle.textContent = theme === 'dark' ? '☀️' : '🌙';
+        localStorage.setItem('theme', theme);
+    };
+
+    const toggleTheme = () => {
+        applyTheme((DOMElements.html.getAttribute('data-color-scheme') || 'light') === 'dark' ? 'light' : 'dark');
     };
 
     // --- Enhanced Profile Picture Upload ---
@@ -299,10 +141,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const snapshot = await uploadBytes(fileRef, file);
             const downloadURL = await getDownloadURL(snapshot.ref);
 
-            // Update user profile in Firebase Auth
             await updateProfile(currentUser, { photoURL: downloadURL });
-
-            // Update user document in Firestore
             await updateDoc(doc(db, 'users', currentUser.uid), {
                 photoURL: downloadURL,
                 updatedAt: serverTimestamp()
@@ -321,8 +160,7 @@ document.addEventListener('DOMContentLoaded', () => {
         try {
             const fileRef = ref(storage, `chat-images/${currentUser.uid}/${Date.now()}_${file.name}`);
             const snapshot = await uploadBytes(fileRef, file);
-            const downloadURL = await getDownloadURL(snapshot.ref);
-            return downloadURL;
+            return await getDownloadURL(snapshot.ref);
         } catch (error) {
             console.error('Error uploading chat image:', error);
             throw error;
@@ -345,36 +183,32 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- Enhanced Chat System ---
     const sendMessage = async (text = '', imageUrl = '') => {
         if ((!text.trim() && !imageUrl) || !currentChatUser || !currentUser) return;
-
+    
         const chatId = getChatId(currentUser.uid, currentChatUser.id);
         
         try {
-            const messageData = {
+            const batch = writeBatch(db);
+            const chatDocRef = doc(db, 'chats', chatId);
+            batch.set(chatDocRef, {
+                participants: [currentUser.uid, currentChatUser.id],
+                lastMessage: text.trim() || '📷 Image',
+                lastMessageTime: serverTimestamp()
+            }, { merge: true });
+    
+            const messageDocRef = doc(collection(db, 'chats', chatId, 'messages'));
+            batch.set(messageDocRef, {
                 text: text.trim(),
                 imageUrl: imageUrl || '',
                 senderId: currentUser.uid,
                 senderName: currentUser.displayName,
-                senderAvatar: currentUser.photoURL || 'https://via.placeholder.com/40',
+                senderAvatar: currentUser.photoURL || genericAvatar,
                 timestamp: serverTimestamp()
-            };
-
-            await addDoc(collection(db, 'chats', chatId, 'messages'), messageData);
-
-            // Update chat metadata
-            await setDoc(doc(db, 'chats', chatId), {
-                participants: [currentUser.uid, currentChatUser.id],
-                lastMessage: text.trim() || '📷 Image',
-                lastMessageTime: serverTimestamp(),
-                updatedAt: serverTimestamp()
-            }, { merge: true });
-
-            // Clear typing indicator
+            });
+    
+            await batch.commit();
             clearTypingIndicator();
-
-            // Send notification for new message
             await createNotification(currentChatUser.id, 'message', text.trim() || '📷 Image');
-
-            if (DOMElements.chatInput) DOMElements.chatInput.value = '';
+    
         } catch (error) {
             console.error('Error sending message:', error);
             showToast('Failed to send message', 'error');
@@ -383,336 +217,170 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const sendTypingIndicator = async () => {
         if (!currentChatUser || !currentUser) return;
-        
         const chatId = getChatId(currentUser.uid, currentChatUser.id);
-        
         try {
-            await setDoc(doc(db, 'typing', chatId), {
-                [currentUser.uid]: {
-                    name: currentUser.displayName,
-                    timestamp: serverTimestamp()
-                }
-            }, { merge: true });
-        } catch (error) {
-            console.error('Error sending typing indicator:', error);
-        }
+            await setDoc(doc(db, 'typing', chatId), { [currentUser.uid]: { name: currentUser.displayName, timestamp: serverTimestamp() } }, { merge: true });
+        } catch (error) { console.error('Error sending typing indicator:', error); }
     };
 
     const clearTypingIndicator = async () => {
         if (!currentChatUser || !currentUser) return;
-        
         const chatId = getChatId(currentUser.uid, currentChatUser.id);
-        
         try {
-            await updateDoc(doc(db, 'typing', chatId), {
-                [currentUser.uid]: null
-            });
-        } catch (error) {
-            console.error('Error clearing typing indicator:', error);
-        }
+            await setDoc(doc(db, 'typing', chatId), { [currentUser.uid]: null }, { merge: true });
+        } catch (error) { console.error('Error clearing typing indicator:', error); }
     };
-
+    
     const listenForTyping = () => {
         if (!currentChatUser || !currentUser) return;
-        
         const chatId = getChatId(currentUser.uid, currentChatUser.id);
-        
         if (typingListener) typingListener();
         
         typingListener = onSnapshot(doc(db, 'typing', chatId), (doc) => {
-            const data = doc.data();
-            if (!data) {
-                if (DOMElements.typingIndicator) DOMElements.typingIndicator.classList.add('hidden');
-                return;
-            }
-
-            const otherUserTyping = Object.keys(data).find(uid => 
-                uid !== currentUser.uid && data[uid] && data[uid].timestamp
-            );
-
+            const data = doc.data() || {};
+            const otherUserTyping = Object.keys(data).find(uid => uid !== currentUser.uid && data[uid] && data[uid].timestamp);
             if (otherUserTyping) {
                 const typingUser = data[otherUserTyping];
-                const timeDiff = Date.now() - (typingUser.timestamp?.toDate?.()?.getTime() || 0);
-                
-                if (timeDiff < 5000) { // Show typing if within last 5 seconds
-                    if (DOMElements.typingUserName) DOMElements.typingUserName.textContent = typingUser.name;
-                    if (DOMElements.typingIndicator) DOMElements.typingIndicator.classList.remove('hidden');
+                const timeDiff = Date.now() - (typingUser.timestamp?.toDate?.().getTime() || 0);
+                if (timeDiff < 5000) {
+                    DOMElements.typingUserName.textContent = typingUser.name;
+                    DOMElements.typingIndicator.classList.remove('hidden');
                 } else {
-                    if (DOMElements.typingIndicator) DOMElements.typingIndicator.classList.add('hidden');
+                    DOMElements.typingIndicator.classList.add('hidden');
                 }
             } else {
-                if (DOMElements.typingIndicator) DOMElements.typingIndicator.classList.add('hidden');
+                DOMElements.typingIndicator.classList.add('hidden');
             }
         });
     };
 
     const openChat = async (user) => {
         currentChatUser = user;
-        openModal('chatModal');
-        
-        if (DOMElements.chatUserAvatar) DOMElements.chatUserAvatar.src = user.photoURL || 'https://via.placeholder.com/32';
-        if (DOMElements.chatUserName) DOMElements.chatUserName.textContent = user.displayName;
-        if (DOMElements.chatUserStatus) DOMElements.chatUserStatus.textContent = user.isOnline ? 'Online' : 'Offline';
-
-        // Load messages
+        DOMElements.chatModal.classList.remove('hidden');
+        DOMElements.chatUserAvatar.src = user.photoURL || genericAvatar;
+        DOMElements.chatUserName.textContent = user.displayName;
+        DOMElements.chatUserStatus.textContent = user.isOnline ? 'Online' : 'Offline';
         loadChatMessages();
-        
-        // Start listening for typing
         listenForTyping();
-
-        // Mark user as having seen the chat
-        const chatId = getChatId(currentUser.uid, user.id);
-        try {
-            await updateDoc(doc(db, 'chats', chatId), {
-                [`seen_${currentUser.uid}`]: serverTimestamp()
-            });
-        } catch (error) {
-            console.error('Error marking chat as seen:', error);
-        }
     };
 
     const loadChatMessages = () => {
         if (!currentChatUser || !currentUser) return;
-
         const chatId = getChatId(currentUser.uid, currentChatUser.id);
-
         if (chatListener) chatListener();
-
-        const messagesQuery = query(
-            collection(db, 'chats', chatId, 'messages'),
-            orderBy('timestamp', 'asc'),
-            limit(50)
-        );
-
+        const messagesQuery = query(collection(db, 'chats', chatId, 'messages'), orderBy('timestamp', 'asc'), limit(50));
         chatListener = onSnapshot(messagesQuery, (snapshot) => {
-            const messages = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-            renderMessages(messages);
+            renderMessages(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
         });
     };
 
     const renderMessages = (messages) => {
-        if (!DOMElements.messagesList) return;
-        
-        DOMElements.messagesList.innerHTML = '';
-
-        messages.forEach(message => {
-            const messageEl = document.createElement('div');
-            messageEl.className = `message ${message.senderId === currentUser.uid ? 'sent' : 'received'}`;
-
-            const avatarEl = document.createElement('img');
-            avatarEl.className = 'message-avatar';
-            avatarEl.src = message.senderAvatar || 'https://via.placeholder.com/28';
-            avatarEl.alt = message.senderName;
-
-            const bubbleEl = document.createElement('div');
-            bubbleEl.className = 'message-bubble';
-
-            if (message.imageUrl) {
-                const imageEl = document.createElement('img');
-                imageEl.className = 'message-image';
-                imageEl.src = message.imageUrl;
-                imageEl.alt = 'Shared image';
-                imageEl.onclick = () => window.open(message.imageUrl, '_blank');
-                bubbleEl.appendChild(imageEl);
-            }
-
-            if (message.text) {
-                const textEl = document.createElement('div');
-                textEl.textContent = message.text;
-                bubbleEl.appendChild(textEl);
-            }
-
-            const timeEl = document.createElement('span');
-            timeEl.className = 'message-time';
-            timeEl.textContent = formatTime(message.timestamp);
-            bubbleEl.appendChild(timeEl);
-
-            messageEl.appendChild(avatarEl);
-            messageEl.appendChild(bubbleEl);
-
-            DOMElements.messagesList.appendChild(messageEl);
-        });
-
-        // Scroll to bottom
-        if (DOMElements.messagesContainer) {
-            DOMElements.messagesContainer.scrollTop = DOMElements.messagesContainer.scrollHeight;
-        }
+        DOMElements.messagesList.innerHTML = messages.map(message => {
+            const isSent = message.senderId === currentUser.uid;
+            return `
+                <div class="message ${isSent ? 'sent' : 'received'}">
+                    <img class="message-avatar" src="${message.senderAvatar}" alt="${message.senderName}" onerror="this.src='${genericAvatar}'">
+                    <div class="message-bubble">
+                        ${message.imageUrl ? `<img src="${message.imageUrl}" class="message-image" alt="Shared image" onclick="window.open('${message.imageUrl}', '_blank')">` : ''}
+                        ${message.text ? `<div>${message.text}</div>` : ''}
+                        <span class="message-time">${formatTime(message.timestamp)}</span>
+                    </div>
+                </div>`;
+        }).join('');
+        DOMElements.messagesContainer.scrollTop = DOMElements.messagesContainer.scrollHeight;
     };
 
-    // --- Enhanced Notification System ---
+    // --- Notification System ---
     const createNotification = async (recipientId, type, contentSnippet = null, postId = null) => {
         if (recipientId === currentUser.uid) return;
-
         try {
-            await addDoc(collection(db, 'notifications'), {
-                recipientId,
-                senderId: currentUser.uid,
-                senderName: currentUser.displayName,
-                senderAvatar: currentUser.photoURL || 'https://via.placeholder.com/40',
-                type,
-                contentSnippet,
-                postId,
-                read: false,
-                createdAt: serverTimestamp()
-            });
-        } catch (e) {
-            console.error("Notification Error:", e);
-        }
+            await addDoc(collection(db, 'notifications'), { recipientId, senderId: currentUser.uid, senderName: currentUser.displayName, senderAvatar: currentUser.photoURL || genericAvatar, type, contentSnippet, postId, read: false, createdAt: serverTimestamp() });
+        } catch (e) { console.error("Notification Error:", e); }
     };
 
     const listenForNotifications = () => {
         if (notificationsListener) notificationsListener();
-
-        const q = query(
-            collection(db, 'notifications'),
-            where('recipientId', '==', currentUser.uid),
-            orderBy('createdAt', 'desc'),
-            limit(10)
-        );
-
+        const q = query(collection(db, 'notifications'), where('recipientId', '==', currentUser.uid), orderBy('createdAt', 'desc'), limit(10));
         notificationsListener = onSnapshot(q, snapshot => {
             const notifs = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
             const unread = notifs.filter(n => !n.read).length;
-
-            if (DOMElements.notificationCount) {
-                DOMElements.notificationCount.textContent = unread;
-                DOMElements.notificationCount.classList.toggle('hidden', unread === 0);
-            }
-
+            DOMElements.notificationCount.textContent = unread;
+            DOMElements.notificationCount.classList.toggle('hidden', unread === 0);
             renderNotifications(notifs);
         });
     };
 
     const renderNotifications = (notifs) => {
-        if (!DOMElements.notificationsList) return;
-        
         const list = DOMElements.notificationsList;
-        list.innerHTML = '';
-
-        if (notifs.length === 0) {
-            list.innerHTML = '<div class="no-notifications">No notifications yet</div>';
-            return;
-        }
-
-        notifs.forEach(notif => {
-            const item = document.createElement('div');
-            item.className = `notification-item ${!notif.read ? 'unread' : ''}`;
-            item.dataset.notificationId = notif.id;
-
-            const icon = getNotificationIcon(notif.type);
-            
-            item.innerHTML = `
-                <div class="notification-item-icon">${icon}</div>
+        list.innerHTML = notifs.length === 0 ? '<div class="no-notifications">No notifications yet</div>' : notifs.map(notif => `
+            <div class="notification-item ${!notif.read ? 'unread' : ''}" data-id="${notif.id}">
+                <div class="notification-item-icon">${getNotificationIcon(notif.type)}</div>
                 <div style="flex: 1;">
                     <div><strong>${notif.senderName}</strong> ${getNotificationText(notif.type, notif.contentSnippet)}</div>
                     <div class="notification-item-time">${formatTime(notif.createdAt)}</div>
                 </div>
-            `;
-
-            item.onclick = () => markNotificationAsRead(notif.id);
-            list.appendChild(item);
-        });
+            </div>`).join('');
+    };
+    DOMElements.notificationsList.addEventListener('click', (e) => {
+        const item = e.target.closest('.notification-item');
+        if(item) markNotificationAsRead(item.dataset.id);
+    });
+    const getNotificationIcon = type => ({like: '❤️', comment: '💬', message: '📩', follow: '👥'}[type] || '🔔');
+    const getNotificationText = (type, content) => ({ like: 'liked your post', comment: `commented: "${content}"`, message: `sent you a message: "${content}"`, follow: 'started following you' }[type] || 'sent you a notification');
+    const markNotificationAsRead = async (id) => {
+        try { await updateDoc(doc(db, 'notifications', id), { read: true }); } 
+        catch (e) { console.error('Error marking notification as read:', e); }
     };
 
-    const getNotificationIcon = (type) => {
-        switch (type) {
-            case 'like': return '❤️';
-            case 'comment': return '💬';
-            case 'message': return '📩';
-            case 'follow': return '👥';
-            default: return '🔔';
-        }
-    };
-
-    const getNotificationText = (type, content) => {
-        switch (type) {
-            case 'like': return 'liked your post';
-            case 'comment': return `commented: "${content}"`;
-            case 'message': return `sent you a message: "${content}"`;
-            case 'follow': return 'started following you';
-            default: return 'sent you a notification';
-        }
-    };
-
-    const markNotificationAsRead = async (notificationId) => {
-        try {
-            await updateDoc(doc(db, 'notifications', notificationId), { read: true });
-        } catch (error) {
-            console.error('Error marking notification as read:', error);
-        }
-    };
-
-    // --- Enhanced Online Users ---
-    const listenForOnlineUsers = () => {
+    // --- User List Logic ---
+    const listenForAllUsers = () => {
         if (usersListener) usersListener();
-
-        const q = query(
-            collection(db, 'users'),
-            where('isOnline', '==', true),
-            limit(20)
+        const q = query(collection(db, 'users'), orderBy('lastSeen', 'desc'), limit(50));
+        usersListener = onSnapshot(q, 
+            (snapshot) => {
+                const users = snapshot.docs.map(d => ({ id: d.id, ...d.data() })).filter(user => user.id !== currentUser.uid);
+                renderAllUsers(users);
+            },
+            (error) => {
+                console.error("Error fetching users. This is likely due to a missing Firestore index.", error);
+                showToast("Could not load user list. A database index is required.", "error");
+            }
         );
-
-        usersListener = onSnapshot(q, snapshot => {
-            const users = snapshot.docs
-                .map(d => ({ id: d.id, ...d.data() }))
-                .filter(user => user.id !== currentUser.uid);
-
-            renderOnlineUsers(users);
-        });
     };
 
-    const renderOnlineUsers = (users) => {
-        if (!DOMElements.onlineUsersList) return;
-        
-        DOMElements.onlineUsersList.innerHTML = '';
-
+    const renderAllUsers = (users) => {
+        const userList = DOMElements.onlineUsersList;
+        userList.innerHTML = '';
+        userList.parentElement.querySelector('h4').textContent = 'All Users';
         if (users.length === 0) {
-            DOMElements.onlineUsersList.innerHTML = '<div style="color: var(--color-text-secondary); font-size: 12px; padding: 8px;">No other users online</div>';
+            userList.innerHTML = '<p style="color: var(--color-text-secondary); font-size: 12px;">No other users found.</p>';
             return;
         }
-
         users.forEach(user => {
             const userEl = document.createElement('div');
             userEl.className = 'online-user-item';
-            userEl.onclick = () => openChat(user);
-
+            const statusIndicatorClass = user.isOnline ? 'online-indicator' : 'offline-indicator';
+            const statusText = user.isOnline ? 'Online' : `Last seen: ${formatTime(user.lastSeen)}`;
             userEl.innerHTML = `
                 <div class="online-user-avatar">
-                    <img src="${user.photoURL || 'https://via.placeholder.com/32'}" alt="${user.displayName}">
-                    <div class="online-indicator"></div>
+                    <img src="${user.photoURL || genericAvatar}" alt="${user.displayName}" onerror="this.src='${genericAvatar}'">
+                    <div class="${statusIndicatorClass}"></div>
                 </div>
                 <div style="flex: 1; min-width: 0;">
-                    <div style="font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
-                        ${user.displayName}
-                    </div>
-                    <div style="font-size: 12px; color: var(--color-text-secondary);">
-                        ${user.status || 'Online'}
-                    </div>
-                </div>
-            `;
-
-            DOMElements.onlineUsersList.appendChild(userEl);
+                    <div style="font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${user.displayName}</div>
+                    <div style="font-size: 12px; color: var(--color-text-secondary);">${statusText}</div>
+                </div>`;
+            userEl.onclick = () => openChat(user);
+            userList.appendChild(userEl);
         });
     };
 
-    // --- Enhanced Posts System ---
+    // --- Posts System ---
     const createPost = async () => {
-        if (!DOMElements.postInput) return;
-        
         const text = DOMElements.postInput.value.trim();
         if (!text || !currentUser) return;
-
         try {
-            await addDoc(collection(db, 'posts'), {
-                text,
-                author: currentUser.displayName,
-                authorId: currentUser.uid,
-                authorAvatar: currentUser.photoURL || 'https://via.placeholder.com/40',
-                likes: [],
-                comments: [],
-                createdAt: serverTimestamp()
-            });
-
+            await addDoc(collection(db, 'posts'), { text, author: currentUser.displayName, authorId: currentUser.uid, authorAvatar: currentUser.photoURL || genericAvatar, likes: [], comments: [], createdAt: serverTimestamp() });
             DOMElements.postInput.value = '';
             showToast('Post created successfully!');
         } catch (error) {
@@ -723,607 +391,226 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const listenForPosts = () => {
         if (postsListener) postsListener();
-
-        const q = query(
-            collection(db, 'posts'),
-            orderBy('createdAt', 'desc'),
-            limit(20)
-        );
-
-        postsListener = onSnapshot(q, snapshot => {
-            const posts = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
-            renderPosts(posts);
-        });
+        const q = query(collection(db, 'posts'), orderBy('createdAt', 'desc'), limit(20));
+        postsListener = onSnapshot(q, snapshot => renderPosts(snapshot.docs.map(d => ({ id: d.id, ...d.data() }))));
     };
 
     const renderPosts = (posts) => {
-        if (!DOMElements.postsContainer) return;
-        
-        DOMElements.postsContainer.innerHTML = '';
-
-        if (posts.length === 0) {
-            DOMElements.postsContainer.innerHTML = `
-                <div class="card" style="padding: 24px; text-align: center; color: var(--color-text-secondary);">
-                    <h3>Welcome to DeepNet Social!</h3>
-                    <p>Be the first to share something with the community.</p>
-                </div>
-            `;
-            return;
-        }
-
-        posts.forEach(post => {
-            const postEl = document.createElement('article');
-            postEl.className = 'post card';
-
-            const isLiked = post.likes?.includes(currentUser.uid);
-            const likeCount = post.likes?.length || 0;
-            const commentCount = post.comments?.length || 0;
-
-            postEl.innerHTML = `
+        DOMElements.postsContainer.innerHTML = posts.map(post => {
+            const postLikes = Array.isArray(post.likes) ? post.likes : [];
+            const isLiked = postLikes.includes(currentUser.uid);
+            return `
+            <article class="post card" id="post-${post.id}">
                 <div class="post-header">
                     <div class="post-author-info">
-                        <img src="${post.authorAvatar}" alt="${post.author}" class="user-avatar">
+                        <img src="${post.authorAvatar}" alt="${post.author}" class="user-avatar" onerror="this.src='${genericAvatar}'">
                         <div>
                             <div style="font-weight: 600;">${post.author}</div>
                             <div style="font-size: 12px; color: var(--color-text-secondary);">${formatTime(post.createdAt)}</div>
                         </div>
                     </div>
                 </div>
-                
-                <div style="margin: 12px 0;">${post.text}</div>
-                
+                <div class="post-content" style="margin: 12px 0;">${post.text}</div>
                 <div class="post-stats">
-                    <span>${likeCount} likes</span>
-                    <span>${commentCount} comments</span>
+                    <span>${postLikes.length} likes</span>
+                    <span>${Array.isArray(post.comments) ? post.comments.length : 0} comments</span>
                 </div>
-                
                 <div class="post-actions">
-                    <button class="post-action ${isLiked ? 'liked' : ''}" onclick="toggleLike('${post.id}')">
-                        ${isLiked ? '❤️' : '🤍'} Like
-                    </button>
-                    <button class="post-action" onclick="toggleComments('${post.id}')">
-                        💬 Comment
-                    </button>
-                    <button class="post-action">
-                        🔗 Share
-                    </button>
+                    <button class="post-action ${isLiked ? 'liked' : ''}" onclick="toggleLike('${post.id}')">${isLiked ? '❤️' : '🤍'} Like</button>
+                    <button class="post-action" onclick="toggleComments('${post.id}')">💬 Comment</button>
+                    <button class="post-action" onclick="sharePost('${post.id}')">🔗 Share</button>
                 </div>
-                
                 <div id="comments-${post.id}" class="comments hidden">
-                    <div class="comment-form">
-                        <input type="text" class="comment-input" placeholder="Write a comment..." onkeypress="if(event.key==='Enter') addComment('${post.id}', this.value); this.value='';">
-                        <button class="btn-secondary" onclick="addComment('${post.id}', document.querySelector('#comments-${post.id} .comment-input').value)">Post</button>
-                    </div>
+                    <form class="comment-form" data-post-id="${post.id}">
+                        <input type="text" class="comment-input" placeholder="Write a comment..." oninput="this.nextElementSibling.disabled = !this.value.trim()">
+                        <button type="submit" class="btn-secondary" disabled>Post</button>
+                    </form>
                     <div class="comments-list">
-                        ${post.comments?.map(comment => `
+                        ${(Array.isArray(post.comments) ? post.comments : []).sort((a,b) => b.createdAt - a.createdAt).map(c => `
                             <div class="comment-item">
-                                <img src="${comment.authorAvatar}" alt="${comment.author}" class="comment-avatar">
-                                <div class="comment-body">
-                                    <strong>${comment.author}</strong> ${comment.text}
-                                    <div style="font-size: 10px; color: var(--color-text-secondary); margin-top: 4px;">${formatTime(comment.createdAt)}</div>
-                                </div>
-                            </div>
-                        `).join('') || ''}
+                                <img src="${c.authorAvatar}" alt="${c.author}" class="comment-avatar" onerror="this.src='${genericAvatar}'">
+                                <div class="comment-body"><strong>${c.author}</strong> ${c.text}<div style="font-size: 10px; color: var(--color-text-secondary); margin-top: 4px;">${formatTime(c.createdAt)}</div></div>
+                            </div>`).join('')}
                     </div>
                 </div>
-            `;
-
-            DOMElements.postsContainer.appendChild(postEl);
-        });
+            </article>`;
+        }).join('');
     };
+    DOMElements.postsContainer.addEventListener('submit', (e) => {
+        if(e.target.classList.contains('comment-form')) {
+            e.preventDefault();
+            const input = e.target.querySelector('.comment-input');
+            const button = e.target.querySelector('button[type="submit"]');
+            addComment(e.target.dataset.postId, input.value, button);
+            input.value = '';
+            button.disabled = true;
+        }
+    });
 
-    // Global functions for post interactions
     window.toggleLike = async (postId) => {
-        try {
-            const postRef = doc(db, 'posts', postId);
-            const postSnap = await getDoc(postRef);
-            const post = postSnap.data();
-
-            const isLiked = post.likes?.includes(currentUser.uid);
-
-            if (isLiked) {
-                await updateDoc(postRef, {
-                    likes: arrayRemove(currentUser.uid)
-                });
-            } else {
-                await updateDoc(postRef, {
-                    likes: arrayUnion(currentUser.uid)
-                });
-                // Send notification to post author
-                if (post.authorId !== currentUser.uid) {
-                    await createNotification(post.authorId, 'like', null, postId);
-                }
-            }
-        } catch (error) {
-            console.error('Error toggling like:', error);
+        const postRef = doc(db, 'posts', postId);
+        const postSnap = await getDoc(postRef);
+        if(!postSnap.exists()) return;
+        const post = postSnap.data();
+        const postLikes = Array.isArray(post.likes) ? post.likes : [];
+        const isLiked = postLikes.includes(currentUser.uid);
+        await updateDoc(postRef, { likes: isLiked ? arrayRemove(currentUser.uid) : arrayUnion(currentUser.uid) });
+        if (!isLiked && post.authorId !== currentUser.uid) {
+            await createNotification(post.authorId, 'like', null, postId);
         }
     };
-
-    window.toggleComments = (postId) => {
-        const commentsEl = document.getElementById(`comments-${postId}`);
-        if (commentsEl) commentsEl.classList.toggle('hidden');
-    };
-
-    window.addComment = async (postId, text) => {
-        if (!text.trim()) return;
-
+    window.toggleComments = (postId) => document.getElementById(`comments-${postId}`).classList.toggle('hidden');
+    window.addComment = async (postId, text, buttonElement) => {
+        if (!text.trim() || !buttonElement) return;
+        buttonElement.disabled = true;
+        buttonElement.textContent = 'Posting...';
+        const comment = { text: text.trim(), author: currentUser.displayName, authorId: currentUser.uid, authorAvatar: currentUser.photoURL || genericAvatar, createdAt: serverTimestamp() };
         try {
-            const comment = {
-                text: text.trim(),
-                author: currentUser.displayName,
-                authorId: currentUser.uid,
-                authorAvatar: currentUser.photoURL || 'https://via.placeholder.com/32',
-                createdAt: serverTimestamp()
-            };
-
             const postRef = doc(db, 'posts', postId);
-            await updateDoc(postRef, {
-                comments: arrayUnion(comment)
-            });
-
-            // Send notification to post author
+            await updateDoc(postRef, { comments: arrayUnion(comment) });
             const postSnap = await getDoc(postRef);
-            const post = postSnap.data();
-            if (post.authorId !== currentUser.uid) {
-                await createNotification(post.authorId, 'comment', text.trim(), postId);
+            if (postSnap.data().authorId !== currentUser.uid) {
+                await createNotification(postSnap.data().authorId, 'comment', text.trim(), postId);
             }
-
-            // Clear input
-            const input = document.querySelector(`#comments-${postId} .comment-input`);
-            if (input) input.value = '';
-
+            buttonElement.disabled = false;
+            buttonElement.textContent = 'Post';
         } catch (error) {
-            console.error('Error adding comment:', error);
+            console.error("Error adding comment: ", error);
+            showToast("Could not post comment.", "error");
+            buttonElement.disabled = false;
+            buttonElement.textContent = 'Post';
+        }
+    };
+    
+    window.sharePost = async (postId) => {
+        const postElement = document.getElementById(`post-${postId}`);
+        const postContent = postElement?.querySelector('.post-content')?.textContent || '';
+        const postUrl = `${window.location.href}#post-${postId}`;
+        const shareData = { title: 'Check out this post on DeepNet Social!', text: `"${postContent}"`, url: postUrl };
+        try {
+            if (navigator.share) await navigator.share(shareData);
+            else throw new Error("Web Share API not supported");
+        } catch (err) {
+            try {
+                await navigator.clipboard.writeText(postUrl);
+                showToast('Post link copied to clipboard!', 'success');
+            } catch (copyErr) {
+                showToast('Could not share or copy link.', 'error');
+            }
         }
     };
 
     // --- Authentication System ---
-    const handleLogin = async (e) => {
-        e.preventDefault();
-        hideError();
-        
-        const email = DOMElements.loginEmail?.value.trim();
-        const password = DOMElements.loginPassword?.value.trim();
-
-        if (!email || !password) {
-            showError('Please fill in all fields');
-            return;
-        }
-
-        console.log('Attempting login for:', email);
-        showLoading();
-
-        try {
-            const userCredential = await signInWithEmailAndPassword(auth, email, password);
-            console.log('Login successful:', userCredential.user.email);
-            showToast('Welcome back!');
-        } catch (error) {
-            console.error('Login error:', error);
-            let errorMessage = 'Login failed. Please try again.';
-            
-            switch (error.code) {
-                case 'auth/user-not-found':
-                    errorMessage = 'No account found with this email.';
-                    break;
-                case 'auth/wrong-password':
-                    errorMessage = 'Invalid password.';
-                    break;
-                case 'auth/invalid-email':
-                    errorMessage = 'Invalid email address.';
-                    break;
-                case 'auth/too-many-requests':
-                    errorMessage = 'Too many failed attempts. Please try again later.';
-                    break;
-                default:
-                    errorMessage = error.message;
-            }
-            
-            showError(errorMessage);
-        } finally {
-            hideLoading();
-        }
-    };
-
-    const handleSignup = async (e) => {
-        e.preventDefault();
-        hideError();
-        
-        const name = DOMElements.signupName?.value.trim();
-        const email = DOMElements.signupEmail?.value.trim();
-        const password = DOMElements.signupPassword?.value.trim();
-
-        if (!name || !email || !password) {
-            showError('Please fill in all fields');
-            return;
-        }
-
-        if (password.length < 6) {
-            showError('Password must be at least 6 characters long');
-            return;
-        }
-
-        console.log('Attempting signup for:', email);
-        showLoading();
-
-        try {
-            const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-            console.log('Signup successful:', userCredential.user.email);
-            
-            // Update profile
-            await updateProfile(userCredential.user, {
-                displayName: name
-            });
-
-            // Create user document in Firestore
-            await setDoc(doc(db, 'users', userCredential.user.uid), {
-                displayName: name,
-                email: email,
-                photoURL: null,
-                isOnline: true,
-                status: 'Online',
-                createdAt: serverTimestamp(),
-                lastSeen: serverTimestamp()
-            });
-
-            showToast('Account created successfully!');
-        } catch (error) {
-            console.error('Signup error:', error);
-            let errorMessage = 'Account creation failed. Please try again.';
-            
-            switch (error.code) {
-                case 'auth/email-already-in-use':
-                    errorMessage = 'An account with this email already exists.';
-                    break;
-                case 'auth/invalid-email':
-                    errorMessage = 'Invalid email address.';
-                    break;
-                case 'auth/weak-password':
-                    errorMessage = 'Password is too weak. Use at least 6 characters.';
-                    break;
-                default:
-                    errorMessage = error.message;
-            }
-            
-            showError(errorMessage);
-        } finally {
-            hideLoading();
-        }
-    };
-
-    const handleLogout = async () => {
-        try {
-            if (currentUser) {
-                // Set user as offline
-                await updateDoc(doc(db, 'users', currentUser.uid), {
-                    isOnline: false,
-                    lastSeen: serverTimestamp()
-                });
-            }
-            
-            await signOut(auth);
-            showToast('Logged out successfully');
-        } catch (error) {
-            console.error('Logout error:', error);
-            showError('Failed to logout');
-        }
-    };
-
     const handleAuth = () => {
         onAuthStateChanged(auth, async (user) => {
-            if (user) {
+            if (user && user.emailVerified) {
                 currentUser = user;
-                closeAllModals();
-
-                // Update UI
-                const avatarUrl = user.photoURL || 'https://via.placeholder.com/40';
-                if (DOMElements.userAvatar) DOMElements.userAvatar.src = avatarUrl;
-                if (DOMElements.sidebarAvatar) DOMElements.sidebarAvatar.src = avatarUrl;
-                if (DOMElements.composerAvatar) DOMElements.composerAvatar.src = avatarUrl;
-                if (DOMElements.profileName) DOMElements.profileName.textContent = user.displayName || 'Anonymous User';
-                if (DOMElements.status) DOMElements.status.textContent = 'Online';
-
-                // Set user as online
-                await setDoc(doc(db, 'users', user.uid), {
-                    displayName: user.displayName,
-                    email: user.email,
-                    photoURL: user.photoURL,
-                    isOnline: true,
-                    lastSeen: serverTimestamp(),
-                    status: 'Online'
-                }, { merge: true });
-
-                // Start listening for data
+                DOMElements.loginModal.classList.add('hidden');
+                const avatarUrl = user.photoURL || genericAvatar;
+                [DOMElements.userAvatar, DOMElements.sidebarAvatar, DOMElements.composerAvatar].forEach(el => el.src = avatarUrl);
+                DOMElements.profileName.textContent = user.displayName || 'Anonymous';
+                DOMElements.status.textContent = 'Online';
+                await setDoc(doc(db, 'users', user.uid), { displayName: user.displayName, email: user.email, photoURL: user.photoURL, isOnline: true, lastSeen: serverTimestamp(), status: 'Online' }, { merge: true });
                 listenForPosts();
-                listenForOnlineUsers();
+                listenForAllUsers();
                 listenForNotifications();
-
-                // Apply saved theme
-                const savedTheme = localStorage.getItem('theme') || 'light';
-                applyTheme(savedTheme);
+                applyTheme(localStorage.getItem('theme') || 'light');
             } else {
+                if (user && !user.emailVerified) {
+                    showToast('Please verify your email before logging in.', 'warning');
+                    signOut(auth);
+                }
                 currentUser = null;
-                openModal('loginModal');
-                
-                // Clean up listeners
-                if (postsListener) postsListener();
-                if (usersListener) usersListener();
-                if (chatListener) chatListener();
-                if (typingListener) typingListener();
-                if (notificationsListener) notificationsListener();
+                DOMElements.loginModal.classList.remove('hidden');
+                [postsListener, usersListener, chatListener, typingListener, notificationsListener].forEach(l => l && l());
             }
         });
     };
 
     // --- Drag & Drop Chat Window ---
     const makeChatDraggable = () => {
-        let isDown = false;
-        let offset = [0, 0];
-
-        if (!DOMElements.chatHeader) return;
-
-        DOMElements.chatHeader.addEventListener('mousedown', (e) => {
-            isDown = true;
-            isDragging = false;
-            offset = [
-                DOMElements.chatContainer?.offsetLeft - e.clientX || 0,
-                DOMElements.chatContainer?.offsetTop - e.clientY || 0
-            ];
-        });
-
-        document.addEventListener('mouseup', () => {
-            isDown = false;
-            setTimeout(() => isDragging = false, 100);
-        });
-
+        let isDown = false, offset = [0, 0];
+        DOMElements.chatHeader.addEventListener('mousedown', (e) => { isDown = true; offset = [DOMElements.chatContainer.offsetLeft - e.clientX, DOMElements.chatContainer.offsetTop - e.clientY]; }, true);
+        document.addEventListener('mouseup', () => { isDown = false; }, true);
         document.addEventListener('mousemove', (e) => {
-            if (isDown && DOMElements.chatContainer) {
-                isDragging = true;
+            if (isDown) {
                 const x = e.clientX + offset[0];
                 const y = e.clientY + offset[1];
-                
-                // Constrain to viewport
                 const maxX = window.innerWidth - DOMElements.chatContainer.offsetWidth;
                 const maxY = window.innerHeight - DOMElements.chatContainer.offsetHeight;
-                
-                DOMElements.chatContainer.style.left = Math.max(0, Math.min(x, maxX)) + 'px';
-                DOMElements.chatContainer.style.top = Math.max(0, Math.min(y, maxY)) + 'px';
+                DOMElements.chatContainer.style.left = `${Math.max(0, Math.min(x, maxX))}px`;
+                DOMElements.chatContainer.style.top = `${Math.max(0, Math.min(y, maxY))}px`;
                 DOMElements.chatContainer.style.right = 'auto';
                 DOMElements.chatContainer.style.bottom = 'auto';
             }
-        });
+        }, true);
     };
 
     // --- Event Listeners ---
     const setupEventListeners = () => {
-        // Authentication
-        if (DOMElements.loginForm) {
-            DOMElements.loginForm.addEventListener('submit', handleLogin);
-        }
-
-        if (DOMElements.signupForm) {
-            DOMElements.signupForm.addEventListener('submit', handleSignup);
-        }
-
-        // Auth form toggle
-        if (DOMElements.showSignup) {
-            DOMElements.showSignup.addEventListener('click', (e) => {
-                e.preventDefault();
-                if (DOMElements.loginForm) DOMElements.loginForm.classList.add('hidden');
-                if (DOMElements.signupForm) DOMElements.signupForm.classList.remove('hidden');
-            });
-        }
-
-        if (DOMElements.showLogin) {
-            DOMElements.showLogin.addEventListener('click', (e) => {
-                e.preventDefault();
-                if (DOMElements.signupForm) DOMElements.signupForm.classList.add('hidden');
-                if (DOMElements.loginForm) DOMElements.loginForm.classList.remove('hidden');
-            });
-        }
-
-        // Modal close buttons
-        if (DOMElements.closeLoginModal) {
-            DOMElements.closeLoginModal.addEventListener('click', () => {
-                closeAllModals();
-            });
-        }
-
-        if (DOMElements.closeAvatarModal) {
-            DOMElements.closeAvatarModal.addEventListener('click', () => {
-                closeAllModals();
-            });
-        }
-
-        // Backdrop click to close modals
-        if (DOMElements.loginModal) {
-            DOMElements.loginModal.addEventListener('click', (e) => {
-                if (e.target === DOMElements.loginModal) {
-                    closeAllModals();
-                }
-            });
-        }
-
-        if (DOMElements.avatarModal) {
-            DOMElements.avatarModal.addEventListener('click', (e) => {
-                if (e.target === DOMElements.avatarModal) {
-                    closeAllModals();
-                }
-            });
-        }
-
-        // Logout
-        if (DOMElements.logoutBtn) {
-            DOMElements.logoutBtn.addEventListener('click', handleLogout);
-        }
-
-        // Posts
-        if (DOMElements.postButton) {
-            DOMElements.postButton.addEventListener('click', createPost);
-        }
-
-        if (DOMElements.postInput) {
-            DOMElements.postInput.addEventListener('keypress', (e) => {
-                if (e.key === 'Enter' && e.ctrlKey) createPost();
-            });
-        }
-
-        // Theme toggle
-        if (DOMElements.themeToggle) {
-            DOMElements.themeToggle.addEventListener('click', toggleTheme);
-        }
-
-        // Notifications toggle
-        if (DOMElements.notificationsToggle) {
-            DOMElements.notificationsToggle.addEventListener('click', () => {
-                if (DOMElements.notificationsPanel) {
-                    DOMElements.notificationsPanel.classList.toggle('hidden');
-                }
-            });
-        }
-
-        // Chat
-        if (DOMElements.closeChatBtn) {
-            DOMElements.closeChatBtn.addEventListener('click', () => {
-                closeAllModals();
-                if (chatListener) chatListener();
-                if (typingListener) typingListener();
-                currentChatUser = null;
-            });
-        }
-
-        if (DOMElements.chatInputForm) {
-            DOMElements.chatInputForm.addEventListener('submit', (e) => {
-                e.preventDefault();
-                const text = DOMElements.chatInput?.value.trim();
-                if (text) sendMessage(text);
-            });
-        }
-
-        // Chat typing indicator
-        if (DOMElements.chatInput) {
-            DOMElements.chatInput.addEventListener('input', () => {
-                sendTypingIndicator();
-                
-                clearTimeout(typingTimer);
-                typingTimer = setTimeout(() => {
-                    clearTypingIndicator();
-                }, 3000);
-            });
-        }
-
-        // Profile picture change
-        if (DOMElements.changeAvatarBtn) {
-            DOMElements.changeAvatarBtn.addEventListener('click', () => {
-                openModal('avatarModal');
-            });
-        }
-
-        if (DOMElements.cancelAvatarBtn) {
-            DOMElements.cancelAvatarBtn.addEventListener('click', () => {
-                closeAllModals();
-            });
-        }
-
-        if (DOMElements.uploadAvatarBtn) {
-            DOMElements.uploadAvatarBtn.addEventListener('click', async () => {
-                const file = DOMElements.avatarInput?.files[0];
-                if (!file) {
-                    showToast('Please select an image', 'warning');
-                    return;
-                }
-
-                try {
-                    showToast('Uploading...', 'warning');
-                    const photoURL = await uploadProfilePicture(file);
-                    
-                    // Update UI
-                    if (DOMElements.userAvatar) DOMElements.userAvatar.src = photoURL;
-                    if (DOMElements.sidebarAvatar) DOMElements.sidebarAvatar.src = photoURL;
-                    if (DOMElements.composerAvatar) DOMElements.composerAvatar.src = photoURL;
-                    
-                    closeAllModals();
-                    showToast('Profile picture updated!');
-                } catch (error) {
-                    showToast('Failed to update profile picture', 'error');
-                }
-            });
-        }
-
-        // Chat image sharing
-        if (DOMElements.chatImageBtn) {
-            DOMElements.chatImageBtn.addEventListener('click', () => {
-                if (DOMElements.chatImageInput) DOMElements.chatImageInput.click();
-            });
-        }
-
-        if (DOMElements.chatImageInput) {
-            DOMElements.chatImageInput.addEventListener('change', async (e) => {
-                const file = e.target.files[0];
-                if (!file) return;
-
-                try {
-                    showToast('Uploading image...', 'warning');
-                    const imageUrl = await uploadChatImage(file);
-                    await sendMessage('', imageUrl);
-                    e.target.value = ''; // Reset input
-                } catch (error) {
-                    showToast('Failed to upload image', 'error');
-                }
-            });
-        }
-
-        // Close panels when clicking outside
-        document.addEventListener('click', (e) => {
-            if (!e.target.closest('.notification-wrapper') && DOMElements.notificationsPanel) {
-                DOMElements.notificationsPanel.classList.add('hidden');
-            }
+        document.getElementById('loginForm').addEventListener('submit', async (e) => { e.preventDefault(); try { await signInWithEmailAndPassword(auth, document.getElementById('loginEmail').value, document.getElementById('loginPassword').value); } catch (error) { showToast(error.message, 'error'); } });
+        document.getElementById('signupForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const name = document.getElementById('signupName').value, email = document.getElementById('signupEmail').value, password = document.getElementById('signupPassword').value;
+            try {
+                const cred = await createUserWithEmailAndPassword(auth, email, password);
+                await updateProfile(cred.user, { displayName: name });
+                await sendEmailVerification(cred.user);
+                showToast('Account created! Please check your email to verify your account.', 'success');
+                await signOut(auth);
+                document.getElementById('signupForm').classList.add('hidden');
+                document.getElementById('loginForm').classList.remove('hidden');
+            } catch (error) { showToast(error.message, 'error'); }
         });
-
-        // Prevent chat from closing when dragging
-        if (DOMElements.chatContainer) {
-            DOMElements.chatContainer.addEventListener('click', (e) => {
-                if (isDragging) e.stopPropagation();
-            });
-        }
-
-        // ESC key to close modals
-        document.addEventListener('keydown', (e) => {
-            if (e.key === 'Escape') {
-                closeAllModals();
-            }
+        
+        document.getElementById('showSignup').addEventListener('click', (e) => { e.preventDefault(); document.getElementById('loginForm').classList.add('hidden'); document.getElementById('signupForm').classList.remove('hidden'); });
+        document.getElementById('showLogin').addEventListener('click', (e) => { e.preventDefault(); document.getElementById('signupForm').classList.add('hidden'); document.getElementById('loginForm').classList.remove('hidden'); });
+        DOMElements.logoutBtn.addEventListener('click', async () => { await updateUserPresence(false); await signOut(auth); });
+        DOMElements.postButton.addEventListener('click', createPost);
+        DOMElements.postInput.addEventListener('keypress', (e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); createPost(); } });
+        DOMElements.themeToggle.addEventListener('click', toggleTheme);
+        DOMElements.notificationsToggle.addEventListener('click', () => DOMElements.notificationsPanel.classList.toggle('hidden'));
+        DOMElements.closeChatBtn.addEventListener('click', () => { DOMElements.chatModal.classList.add('hidden'); if (chatListener) chatListener(); if (typingListener) typingListener(); currentChatUser = null; });
+        DOMElements.chatInputForm.addEventListener('submit', (e) => { e.preventDefault(); const text = DOMElements.chatInput.value.trim(); if (text) { sendMessage(text); DOMElements.chatInput.value = ''; } });
+        DOMElements.chatInput.addEventListener('keypress', (e) => { if (e.key === 'Enter') { e.preventDefault(); DOMElements.chatInputForm.requestSubmit(); } });
+        DOMElements.chatInput.addEventListener('input', () => { sendTypingIndicator(); clearTimeout(typingTimer); typingTimer = setTimeout(clearTypingIndicator, 3000); });
+        DOMElements.changeAvatarBtn.addEventListener('click', () => DOMElements.avatarModal.classList.remove('hidden'));
+        DOMElements.cancelAvatarBtn.addEventListener('click', () => DOMElements.avatarModal.classList.add('hidden'));
+        DOMElements.uploadAvatarBtn.addEventListener('click', async () => {
+            const file = DOMElements.avatarInput.files[0];
+            if (!file) return showToast('Please select an image', 'warning');
+            try {
+                showToast('Uploading...', 'warning');
+                const photoURL = await uploadProfilePicture(file);
+                [DOMElements.userAvatar, DOMElements.sidebarAvatar, DOMElements.composerAvatar].forEach(el => el.src = photoURL);
+                DOMElements.avatarModal.classList.add('hidden');
+                showToast('Profile picture updated!');
+            } catch (error) { showToast('Failed to update profile picture', 'error'); }
         });
+        DOMElements.chatImageBtn.addEventListener('click', () => DOMElements.chatImageInput.click());
+        DOMElements.chatImageInput.addEventListener('change', async (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+            try {
+                showToast('Uploading image...', 'warning');
+                const imageUrl = await uploadChatImage(file);
+                await sendMessage('', imageUrl);
+                e.target.value = '';
+            } catch (error) { showToast('Failed to upload image', 'error'); }
+        });
+        document.addEventListener('click', (e) => { if (!e.target.closest('.notification-wrapper')) DOMElements.notificationsPanel.classList.add('hidden'); });
     };
 
     // --- Initialize App ---
-    const initializeApp = () => {
-        // Apply saved theme
-        const savedTheme = localStorage.getItem('theme') || 'light';
-        applyTheme(savedTheme);
-
-        // Set up event listeners
+    const startApp = () => {
+        applyTheme(localStorage.getItem('theme') || 'light');
         setupEventListeners();
-
-        // Make chat draggable
         makeChatDraggable();
-
-        // Handle authentication state
         handleAuth();
-
-        // Handle page visibility for presence
-        document.addEventListener('visibilitychange', () => {
-            if (currentUser) {
-                updateUserPresence(!document.hidden);
-            }
-        });
-
-        // Handle page unload
-        window.addEventListener('beforeunload', () => {
-            if (currentUser) {
-                updateUserPresence(false);
-            }
-        });
+        document.addEventListener('visibilitychange', () => { if(currentUser) updateUserPresence(!document.hidden); });
+        window.addEventListener('beforeunload', () => { if(currentUser) updateUserPresence(false); });
     };
 
-    // Start the app
-    initializeApp();
+    startApp();
 });
+
