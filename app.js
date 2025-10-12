@@ -1,4 +1,4 @@
-// --- Enhanced Firebase Imports with Storage ---
+// --- Enhanced Firebase Imports with Emergency Reset ---
 import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-app.js";
 import { 
     getAuth, 
@@ -36,6 +36,48 @@ import {
     getDownloadURL,
     deleteObject 
 } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-storage.js";
+
+// --- Emergency Reset Function (Must be defined first) ---
+const emergencyReset = () => {
+    console.log('Emergency reset triggered');
+    
+    // Hide all modals
+    const modals = ['loginModal', 'chatModal', 'avatarModal', 'notificationsPanel'];
+    modals.forEach(modalId => {
+        const modal = document.getElementById(modalId);
+        if (modal) {
+            modal.classList.add('hidden');
+            modal.style.display = 'none';
+        }
+    });
+    
+    // Clear all backdrop elements
+    document.querySelectorAll('.modal-backdrop').forEach(backdrop => {
+        backdrop.classList.add('hidden');
+        backdrop.style.display = 'none';
+    });
+    
+    // Re-enable body scrolling
+    document.body.style.overflow = '';
+    document.documentElement.style.overflow = '';
+    
+    // Hide loading indicator
+    const loading = document.getElementById('loadingIndicator');
+    if (loading) loading.classList.add('hidden');
+    
+    // Hide emergency button
+    const emergencyBtn = document.getElementById('emergencyReset');
+    if (emergencyBtn) emergencyBtn.style.display = 'none';
+    
+    // Force show the main app
+    const app = document.getElementById('app');
+    if (app) {
+        app.style.display = 'grid';
+        app.style.visibility = 'visible';
+    }
+    
+    showToast('Interface reset successful', 'success');
+};
 
 // --- Utility Functions (Must be defined before use) ---
 const showToast = (message, type = 'success') => {
@@ -121,9 +163,44 @@ const toggleTheme = () => {
     applyTheme(newTheme);
 };
 
+// --- Modal Management Functions ---
+const closeAllModals = () => {
+    const modals = ['loginModal', 'chatModal', 'avatarModal'];
+    modals.forEach(modalId => {
+        const modal = document.getElementById(modalId);
+        if (modal) {
+            modal.classList.add('hidden');
+        }
+    });
+    
+    // Hide notification panel
+    const notificationsPanel = document.getElementById('notificationsPanel');
+    if (notificationsPanel) {
+        notificationsPanel.classList.add('hidden');
+    }
+};
+
+const openModal = (modalId) => {
+    closeAllModals(); // Close other modals first
+    const modal = document.getElementById(modalId);
+    if (modal) {
+        modal.classList.remove('hidden');
+    }
+};
+
 // --- App Initialization wrapped in DOMContentLoaded to prevent race conditions ---
 document.addEventListener('DOMContentLoaded', () => {
     console.log('DOM loaded, initializing app...');
+
+    // Show emergency reset button for 10 seconds
+    const emergencyBtn = document.getElementById('emergencyReset');
+    if (emergencyBtn) {
+        emergencyBtn.style.display = 'block';
+        emergencyBtn.onclick = emergencyReset;
+        setTimeout(() => {
+            emergencyBtn.style.display = 'none';
+        }, 10000);
+    }
 
     // --- Firebase Configuration & Initialization ---
     const firebaseConfig = {
@@ -208,7 +285,9 @@ document.addEventListener('DOMContentLoaded', () => {
         showSignup: document.getElementById('showSignup'),
         showLogin: document.getElementById('showLogin'),
         authError: document.getElementById('authError'),
-        loadingIndicator: document.getElementById('loadingIndicator')
+        loadingIndicator: document.getElementById('loadingIndicator'),
+        closeLoginModal: document.getElementById('closeLoginModal'),
+        closeAvatarModal: document.getElementById('closeAvatarModal')
     };
 
     // --- Enhanced Profile Picture Upload ---
@@ -295,7 +374,7 @@ document.addEventListener('DOMContentLoaded', () => {
             // Send notification for new message
             await createNotification(currentChatUser.id, 'message', text.trim() || '📷 Image');
 
-            DOMElements.chatInput.value = '';
+            if (DOMElements.chatInput) DOMElements.chatInput.value = '';
         } catch (error) {
             console.error('Error sending message:', error);
             showToast('Failed to send message', 'error');
@@ -343,7 +422,7 @@ document.addEventListener('DOMContentLoaded', () => {
         typingListener = onSnapshot(doc(db, 'typing', chatId), (doc) => {
             const data = doc.data();
             if (!data) {
-                DOMElements.typingIndicator.classList.add('hidden');
+                if (DOMElements.typingIndicator) DOMElements.typingIndicator.classList.add('hidden');
                 return;
             }
 
@@ -356,24 +435,24 @@ document.addEventListener('DOMContentLoaded', () => {
                 const timeDiff = Date.now() - (typingUser.timestamp?.toDate?.()?.getTime() || 0);
                 
                 if (timeDiff < 5000) { // Show typing if within last 5 seconds
-                    DOMElements.typingUserName.textContent = typingUser.name;
-                    DOMElements.typingIndicator.classList.remove('hidden');
+                    if (DOMElements.typingUserName) DOMElements.typingUserName.textContent = typingUser.name;
+                    if (DOMElements.typingIndicator) DOMElements.typingIndicator.classList.remove('hidden');
                 } else {
-                    DOMElements.typingIndicator.classList.add('hidden');
+                    if (DOMElements.typingIndicator) DOMElements.typingIndicator.classList.add('hidden');
                 }
             } else {
-                DOMElements.typingIndicator.classList.add('hidden');
+                if (DOMElements.typingIndicator) DOMElements.typingIndicator.classList.add('hidden');
             }
         });
     };
 
     const openChat = async (user) => {
         currentChatUser = user;
-        DOMElements.chatModal.classList.remove('hidden');
+        openModal('chatModal');
         
-        DOMElements.chatUserAvatar.src = user.photoURL || 'https://via.placeholder.com/32';
-        DOMElements.chatUserName.textContent = user.displayName;
-        DOMElements.chatUserStatus.textContent = user.isOnline ? 'Online' : 'Offline';
+        if (DOMElements.chatUserAvatar) DOMElements.chatUserAvatar.src = user.photoURL || 'https://via.placeholder.com/32';
+        if (DOMElements.chatUserName) DOMElements.chatUserName.textContent = user.displayName;
+        if (DOMElements.chatUserStatus) DOMElements.chatUserStatus.textContent = user.isOnline ? 'Online' : 'Offline';
 
         // Load messages
         loadChatMessages();
@@ -412,6 +491,8 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     const renderMessages = (messages) => {
+        if (!DOMElements.messagesList) return;
+        
         DOMElements.messagesList.innerHTML = '';
 
         messages.forEach(message => {
@@ -453,7 +534,9 @@ document.addEventListener('DOMContentLoaded', () => {
         });
 
         // Scroll to bottom
-        DOMElements.messagesContainer.scrollTop = DOMElements.messagesContainer.scrollHeight;
+        if (DOMElements.messagesContainer) {
+            DOMElements.messagesContainer.scrollTop = DOMElements.messagesContainer.scrollHeight;
+        }
     };
 
     // --- Enhanced Notification System ---
@@ -491,14 +574,18 @@ document.addEventListener('DOMContentLoaded', () => {
             const notifs = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
             const unread = notifs.filter(n => !n.read).length;
 
-            DOMElements.notificationCount.textContent = unread;
-            DOMElements.notificationCount.classList.toggle('hidden', unread === 0);
+            if (DOMElements.notificationCount) {
+                DOMElements.notificationCount.textContent = unread;
+                DOMElements.notificationCount.classList.toggle('hidden', unread === 0);
+            }
 
             renderNotifications(notifs);
         });
     };
 
     const renderNotifications = (notifs) => {
+        if (!DOMElements.notificationsList) return;
+        
         const list = DOMElements.notificationsList;
         list.innerHTML = '';
 
@@ -575,7 +662,14 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     const renderOnlineUsers = (users) => {
+        if (!DOMElements.onlineUsersList) return;
+        
         DOMElements.onlineUsersList.innerHTML = '';
+
+        if (users.length === 0) {
+            DOMElements.onlineUsersList.innerHTML = '<div style="color: var(--color-text-secondary); font-size: 12px; padding: 8px;">No other users online</div>';
+            return;
+        }
 
         users.forEach(user => {
             const userEl = document.createElement('div');
@@ -603,6 +697,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- Enhanced Posts System ---
     const createPost = async () => {
+        if (!DOMElements.postInput) return;
+        
         const text = DOMElements.postInput.value.trim();
         if (!text || !currentUser) return;
 
@@ -641,7 +737,19 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     const renderPosts = (posts) => {
+        if (!DOMElements.postsContainer) return;
+        
         DOMElements.postsContainer.innerHTML = '';
+
+        if (posts.length === 0) {
+            DOMElements.postsContainer.innerHTML = `
+                <div class="card" style="padding: 24px; text-align: center; color: var(--color-text-secondary);">
+                    <h3>Welcome to DeepNet Social!</h3>
+                    <p>Be the first to share something with the community.</p>
+                </div>
+            `;
+            return;
+        }
 
         posts.forEach(post => {
             const postEl = document.createElement('article');
@@ -733,7 +841,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     window.toggleComments = (postId) => {
         const commentsEl = document.getElementById(`comments-${postId}`);
-        commentsEl.classList.toggle('hidden');
+        if (commentsEl) commentsEl.classList.toggle('hidden');
     };
 
     window.addComment = async (postId, text) => {
@@ -774,8 +882,8 @@ document.addEventListener('DOMContentLoaded', () => {
         e.preventDefault();
         hideError();
         
-        const email = DOMElements.loginEmail.value.trim();
-        const password = DOMElements.loginPassword.value.trim();
+        const email = DOMElements.loginEmail?.value.trim();
+        const password = DOMElements.loginPassword?.value.trim();
 
         if (!email || !password) {
             showError('Please fill in all fields');
@@ -820,9 +928,9 @@ document.addEventListener('DOMContentLoaded', () => {
         e.preventDefault();
         hideError();
         
-        const name = DOMElements.signupName.value.trim();
-        const email = DOMElements.signupEmail.value.trim();
-        const password = DOMElements.signupPassword.value.trim();
+        const name = DOMElements.signupName?.value.trim();
+        const email = DOMElements.signupEmail?.value.trim();
+        const password = DOMElements.signupPassword?.value.trim();
 
         if (!name || !email || !password) {
             showError('Please fill in all fields');
@@ -904,15 +1012,15 @@ document.addEventListener('DOMContentLoaded', () => {
         onAuthStateChanged(auth, async (user) => {
             if (user) {
                 currentUser = user;
-                DOMElements.loginModal.classList.add('hidden');
+                closeAllModals();
 
                 // Update UI
                 const avatarUrl = user.photoURL || 'https://via.placeholder.com/40';
-                DOMElements.userAvatar.src = avatarUrl;
-                DOMElements.sidebarAvatar.src = avatarUrl;
-                DOMElements.composerAvatar.src = avatarUrl;
-                DOMElements.profileName.textContent = user.displayName || 'Anonymous User';
-                DOMElements.status.textContent = 'Online';
+                if (DOMElements.userAvatar) DOMElements.userAvatar.src = avatarUrl;
+                if (DOMElements.sidebarAvatar) DOMElements.sidebarAvatar.src = avatarUrl;
+                if (DOMElements.composerAvatar) DOMElements.composerAvatar.src = avatarUrl;
+                if (DOMElements.profileName) DOMElements.profileName.textContent = user.displayName || 'Anonymous User';
+                if (DOMElements.status) DOMElements.status.textContent = 'Online';
 
                 // Set user as online
                 await setDoc(doc(db, 'users', user.uid), {
@@ -934,7 +1042,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 applyTheme(savedTheme);
             } else {
                 currentUser = null;
-                DOMElements.loginModal.classList.remove('hidden');
+                openModal('loginModal');
                 
                 // Clean up listeners
                 if (postsListener) postsListener();
@@ -957,8 +1065,8 @@ document.addEventListener('DOMContentLoaded', () => {
             isDown = true;
             isDragging = false;
             offset = [
-                DOMElements.chatContainer.offsetLeft - e.clientX,
-                DOMElements.chatContainer.offsetTop - e.clientY
+                DOMElements.chatContainer?.offsetLeft - e.clientX || 0,
+                DOMElements.chatContainer?.offsetTop - e.clientY || 0
             ];
         });
 
@@ -968,7 +1076,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
 
         document.addEventListener('mousemove', (e) => {
-            if (isDown) {
+            if (isDown && DOMElements.chatContainer) {
                 isDragging = true;
                 const x = e.clientX + offset[0];
                 const y = e.clientY + offset[1];
@@ -1000,16 +1108,46 @@ document.addEventListener('DOMContentLoaded', () => {
         if (DOMElements.showSignup) {
             DOMElements.showSignup.addEventListener('click', (e) => {
                 e.preventDefault();
-                DOMElements.loginForm.classList.add('hidden');
-                DOMElements.signupForm.classList.remove('hidden');
+                if (DOMElements.loginForm) DOMElements.loginForm.classList.add('hidden');
+                if (DOMElements.signupForm) DOMElements.signupForm.classList.remove('hidden');
             });
         }
 
         if (DOMElements.showLogin) {
             DOMElements.showLogin.addEventListener('click', (e) => {
                 e.preventDefault();
-                DOMElements.signupForm.classList.add('hidden');
-                DOMElements.loginForm.classList.remove('hidden');
+                if (DOMElements.signupForm) DOMElements.signupForm.classList.add('hidden');
+                if (DOMElements.loginForm) DOMElements.loginForm.classList.remove('hidden');
+            });
+        }
+
+        // Modal close buttons
+        if (DOMElements.closeLoginModal) {
+            DOMElements.closeLoginModal.addEventListener('click', () => {
+                closeAllModals();
+            });
+        }
+
+        if (DOMElements.closeAvatarModal) {
+            DOMElements.closeAvatarModal.addEventListener('click', () => {
+                closeAllModals();
+            });
+        }
+
+        // Backdrop click to close modals
+        if (DOMElements.loginModal) {
+            DOMElements.loginModal.addEventListener('click', (e) => {
+                if (e.target === DOMElements.loginModal) {
+                    closeAllModals();
+                }
+            });
+        }
+
+        if (DOMElements.avatarModal) {
+            DOMElements.avatarModal.addEventListener('click', (e) => {
+                if (e.target === DOMElements.avatarModal) {
+                    closeAllModals();
+                }
             });
         }
 
@@ -1037,14 +1175,16 @@ document.addEventListener('DOMContentLoaded', () => {
         // Notifications toggle
         if (DOMElements.notificationsToggle) {
             DOMElements.notificationsToggle.addEventListener('click', () => {
-                DOMElements.notificationsPanel.classList.toggle('hidden');
+                if (DOMElements.notificationsPanel) {
+                    DOMElements.notificationsPanel.classList.toggle('hidden');
+                }
             });
         }
 
         // Chat
         if (DOMElements.closeChatBtn) {
             DOMElements.closeChatBtn.addEventListener('click', () => {
-                DOMElements.chatModal.classList.add('hidden');
+                closeAllModals();
                 if (chatListener) chatListener();
                 if (typingListener) typingListener();
                 currentChatUser = null;
@@ -1054,7 +1194,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (DOMElements.chatInputForm) {
             DOMElements.chatInputForm.addEventListener('submit', (e) => {
                 e.preventDefault();
-                const text = DOMElements.chatInput.value.trim();
+                const text = DOMElements.chatInput?.value.trim();
                 if (text) sendMessage(text);
             });
         }
@@ -1074,19 +1214,19 @@ document.addEventListener('DOMContentLoaded', () => {
         // Profile picture change
         if (DOMElements.changeAvatarBtn) {
             DOMElements.changeAvatarBtn.addEventListener('click', () => {
-                DOMElements.avatarModal.classList.remove('hidden');
+                openModal('avatarModal');
             });
         }
 
         if (DOMElements.cancelAvatarBtn) {
             DOMElements.cancelAvatarBtn.addEventListener('click', () => {
-                DOMElements.avatarModal.classList.add('hidden');
+                closeAllModals();
             });
         }
 
         if (DOMElements.uploadAvatarBtn) {
             DOMElements.uploadAvatarBtn.addEventListener('click', async () => {
-                const file = DOMElements.avatarInput.files[0];
+                const file = DOMElements.avatarInput?.files[0];
                 if (!file) {
                     showToast('Please select an image', 'warning');
                     return;
@@ -1097,11 +1237,11 @@ document.addEventListener('DOMContentLoaded', () => {
                     const photoURL = await uploadProfilePicture(file);
                     
                     // Update UI
-                    DOMElements.userAvatar.src = photoURL;
-                    DOMElements.sidebarAvatar.src = photoURL;
-                    DOMElements.composerAvatar.src = photoURL;
+                    if (DOMElements.userAvatar) DOMElements.userAvatar.src = photoURL;
+                    if (DOMElements.sidebarAvatar) DOMElements.sidebarAvatar.src = photoURL;
+                    if (DOMElements.composerAvatar) DOMElements.composerAvatar.src = photoURL;
                     
-                    DOMElements.avatarModal.classList.add('hidden');
+                    closeAllModals();
                     showToast('Profile picture updated!');
                 } catch (error) {
                     showToast('Failed to update profile picture', 'error');
@@ -1112,7 +1252,7 @@ document.addEventListener('DOMContentLoaded', () => {
         // Chat image sharing
         if (DOMElements.chatImageBtn) {
             DOMElements.chatImageBtn.addEventListener('click', () => {
-                DOMElements.chatImageInput.click();
+                if (DOMElements.chatImageInput) DOMElements.chatImageInput.click();
             });
         }
 
@@ -1134,7 +1274,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // Close panels when clicking outside
         document.addEventListener('click', (e) => {
-            if (!e.target.closest('.notification-wrapper')) {
+            if (!e.target.closest('.notification-wrapper') && DOMElements.notificationsPanel) {
                 DOMElements.notificationsPanel.classList.add('hidden');
             }
         });
@@ -1145,6 +1285,13 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (isDragging) e.stopPropagation();
             });
         }
+
+        // ESC key to close modals
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                closeAllModals();
+            }
+        });
     };
 
     // --- Initialize App ---
